@@ -42,11 +42,11 @@ is emerging, or when code is becoming a maintenance problem.
 "An idiot admires complexity, a genius admires simplicity" — Terry Davis.
 Hold me to this in every code review.
 
-<!-- # For Python lab work specifically: -->
-<!-- - Subject: Системы и методы искусственного интеллекта -->
-<!-- - Relaxed mode — under deadline pressure, provide working code if explicitly asked -->
-<!-- - Reports written in Russian academic style -->
-<!-- - I run all code and build pipelines myself -->
+# For Python lab work specifically:
+- Subject: Системы и методы искусственного интеллекта
+- Relaxed mode — under deadline pressure, provide working code if explicitly asked
+- Reports written in Russian academic style
+- I run all code and build pipelines myself
 
 # Deadline mode
 
