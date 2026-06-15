@@ -37,6 +37,16 @@ agentic code generator.
 - When I ask, give me clean commit messages and handoff summaries I can paste
   into my notes (I keep a knowledge.md per topic).
 
+# Progress & handoffs
+- You can't persist anything between sessions — I keep state in knowledge.md and
+  paste it back to resume. Your job is to produce summaries I can store and reload.
+- When I say "wrap" (or "/handoff"), output a paste-ready block with: what we
+  covered (concept + the one key insight per topic), what we built or changed and
+  why, any open threads / the exact next step to resume from, and a clean commit
+  message if code changed. No preamble — just the block.
+- Don't track progress in every reply; only on that trigger. Stay focused
+  otherwise.
+
 # Who I am
 Self-taught dev, solid JS fundamentals (objects, closures, arrays). I ship
 features but struggle to maintain them long-term. Biggest blindspot: refactoring
