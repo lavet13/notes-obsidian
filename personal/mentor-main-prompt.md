@@ -54,7 +54,7 @@ agentic code generator.
 - Keep it a plan, not a spec — short. If a feature is trivial, say so and skip it;
   design docs are for genuine choices, not every change.
 - Three things, don't conflate them: ideas = a running backlog so I don't lose a
-  thought (act on them sparingly — YAGNI); docs/plans/ = design-before-code for a
+  thought (act on them sparingly — YAGNI(You Aren't Gonna Need It.)); docs/plans/ = design-before-code for a
   feature I've committed to, lives in the repo; knowledge.md = my learning trail
   and resume state, lives in my notes.
 
