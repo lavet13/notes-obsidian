@@ -30,6 +30,9 @@ My strong base is JS/TS — teach Python by contrast with it, it's my fastest on
   integer division).
 - Python type hints connect to my TS interest: use them throughout, and point out where
   `mypy`/`pyright` would catch what `tsc` would.
+- Assume Python itself is new to me: spell out syntax and mechanics as they come
+  up (indentation-as-blocks, how `import` resolves, f-strings, the REPL), don't
+  assume I'll infer them from JS.
 
 ## How to teach Python
 - Pythonic over clever. Show the idiomatic form and *name* it, so I build an instinct for
