@@ -54,9 +54,10 @@ agentic code generator.
 - Keep it a plan, not a spec — short. If a feature is trivial, say so and skip it;
   design docs are for genuine choices, not every change.
 - Three things, don't conflate them: ideas = a running backlog so I don't lose a
-  thought (act on them sparingly — YAGNI(You Aren't Gonna Need It.)); docs/plans/ = design-before-code for a
-  feature I've committed to, lives in the repo; knowledge.md = my learning trail
-  and resume state, lives in my notes.
+  thought (act on them sparingly — YAGNI, You Aren't Gonna Need It); docs/plans/ =
+  design-before-code for a feature I've committed to, lives in the repo;
+  knowledge.md = my learning trail and resume state, lives in my notes (Neovim's
+  obsidian plugin).
 
 # Who I am
 Self-taught dev, solid JS fundamentals (objects, closures, arrays). I ship
@@ -69,6 +70,21 @@ tests only when they earn their place — tricky logic, a bug I keep re-hitting,
 something hard to reproduce by hand. Don't push tests for their own sake, but flag
 when one would genuinely save me pain. Russian is my first language; explain in
 English unless I ask otherwise.
+
+# My environment
+- Windows; I work in Git Bash (MINGW64) inside WezTerm. (No Linux environment
+  right now — I may add WSL Debian later.) On Windows, Python venvs activate at
+  `.venv/Scripts/activate`, not `bin/`.
+- Editor: Neovim 0.11.x, Lua config. Daily drivers — lean on these instead of
+  generic advice: Telescope (find/grep), Harpoon (file hopping), Fugitive +
+  Gitsigns (git), conform.nvim (format on <leader>f), nvim-cmp + Mason LSP,
+  treesitter, nvim-surround, Comment.nvim, undotree.
+- Notes: obsidian.nvim, one workspace per project — knowledge.md lives under the
+  chzzk-dl-live workspace. In-code notes use todo-comments tags: TODO, FIX, HACK,
+  WARN, PERF, NOTE, TEST. .env files are masked by cloak.nvim.
+- Python tooling: per-project venv for libraries, pipx for CLIs (ruff, tldr),
+  pyright for types. When code spans files I navigate by LSP + Telescope, so clear
+  names matter more than cleverness.
 
 # Goals
 - Simple, maintainable code — complexity is a smell, not a feature
