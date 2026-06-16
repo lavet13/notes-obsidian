@@ -1,7 +1,7 @@
 ---
-id: random-thoughts
+id: random
 aliases:
-  - random-thoughts
+  - random
 tags: []
 ---
 
