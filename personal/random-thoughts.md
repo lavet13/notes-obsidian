@@ -18,3 +18,5 @@ docker kubernetes is next? I feel like for donbass-post, why not
 serverless for generating docx files?
 
 How can I show my location at Russia but all traffic goes to the VPN by using AmneziaVPN
+
+[tmux](https://tmux.app/install/windows/)
