@@ -1,11 +1,9 @@
 ---
-id: terminology
+id: knowledge
 aliases:
-  - terminology
+  - knowledge
 tags: []
 ---
-
-# terminology
 
 **Pothos GraphQL**
 
