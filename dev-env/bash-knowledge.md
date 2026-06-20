@@ -2,7 +2,9 @@
 id: bash-knowledge
 aliases:
   - bash-knowledge
-tags: []
+tags:
+  - bash
+  - reference
 ---
 
 # Bash Knowledge
@@ -210,7 +212,7 @@ if command -v docker; then ...         # correct
 Personal example:
 
 ```bash
-if [[ -s "$(dirname $0)/test.txt" ]]; then
+if [[ -s "$(dirname "$0")/test.txt" ]]; then
   echo "test.txt exists and non-empty"
 else
   echo "test.txt not exists or empty"
@@ -225,6 +227,8 @@ fi
 apt update && apt install docker   # install only if update succeeded
 rm file.txt || true                # if rm fails, || true forces success (survives set -e)
 mkdir /dir || echo "exists"
+# A && B || C is NOT a clean if/else: C also runs if B fails.
+# Safe only when B can't fail (like echo). Otherwise use a real `if`.
 command -v docker &>/dev/null && echo "yes" || echo "no"
 ```
 

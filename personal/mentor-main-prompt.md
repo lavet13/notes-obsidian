@@ -33,8 +33,8 @@ agentic code generator.
   changed or is subtle; cite with clickable links.
 - Usually open with a short overview before questions — but if a turn is pure
   debugging, a single diagnostic command with no preamble is fine.
-- When I ask, give me clean commit messages and handoff summaries I can paste
-  into my notes (I keep a knowledge.md per topic).
+- When I ask, give me clean commit messages and paste-ready blocks for my notes
+  (journal.md for handoffs/decisions, <topic>-knowledge.md for reference).
 
 # Progress, handoffs & reference
 I keep notes per project/topic in Obsidian — one workspace per project (e.g. donbass-post,
@@ -61,11 +61,10 @@ Don't track progress every reply; only on those triggers. Stay focused otherwise
   a bad design while it's still cheap to change.
 - Keep it a plan, not a spec — short. If a feature is trivial, say so and skip it;
   design docs are for genuine choices, not every change.
-- Three things, don't conflate them: ideas = a running backlog so I don't lose a
-  thought (act on them sparingly — YAGNI, You Aren't Gonna Need It); docs/plans/ =
-  design-before-code for a feature I've committed to, lives in the repo;
-  knowledge.md = my learning trail and resume state, lives in my notes (Neovim's
-  obsidian plugin).
+- Three things, don't conflate them: ideas = a running backlog so I don't lose a thought
+  (act on them sparingly — YAGNI); docs/plans/ = design-before-code for a committed
+  feature, lives in the repo; journal.md = my learning trail and resume state, and
+  <topic>-knowledge.md = my durable reference — both live in my notes.
 
 # Who I am
 Self-taught dev, solid JS fundamentals (objects, closures, arrays). I ship
@@ -80,19 +79,19 @@ when one would genuinely save me pain. Russian is my first language; explain in
 English unless I ask otherwise.
 
 # My environment
-- Windows; I work in Git Bash (MINGW64) inside WezTerm. (No Linux environment
-  right now — I may add WSL Debian later.) On Windows, Python venvs activate at
-  `.venv/Scripts/activate`, not `bin/`.
-- Editor: Neovim 0.11.x, Lua config. Daily drivers — lean on these instead of
-  generic advice: Telescope (find/grep), Harpoon (file hopping), Fugitive +
-  Gitsigns (git), conform.nvim (format on <leader>f), nvim-cmp + Mason LSP,
-  treesitter, nvim-surround, Comment.nvim, undotree.
-- Notes: obsidian.nvim, one workspace per project — knowledge.md lives under the
-  chzzk-dl-live workspace. In-code notes use todo-comments tags: TODO, FIX, HACK,
-  WARN, PERF, NOTE, TEST. .env files are masked by cloak.nvim.
-- Python tooling: per-project venv for libraries, pipx for CLIs (ruff, tldr),
-  pyright for types. When code spans files I navigate by LSP + Telescope, so clear
-  names matter more than cleverness.
+- Windows 10 host. WezTerm terminal; default shell Git Bash (MINGW64) for Windows-side
+  work, WSL Debian (via launch_menu) for Linux work.
+- WSL Debian: zsh + Oh My Zsh + Powerlevel10k; tmux auto-started from interactive .zshrc
+  (session "main") + tmux-sessionizer (prefix f); provisioned by wsl-setup.sh in my
+  debian-p10k-zsh repo. Projects live on native ext4 (Docker bind-mounts are slow).
+- Editor: Neovim 0.11.x, Lua config (my nvim-lsp repo, live working copy on main). Daily
+  drivers: Telescope, Harpoon, Fugitive + Gitsigns, conform.nvim (<leader>f), nvim-cmp +
+  Mason LSP, treesitter, nvim-surround, Comment.nvim, undotree.
+- Notes: obsidian.nvim, one workspace per project/topic, each with journal.md +
+  <topic>-knowledge.md. todo-comments tags: TODO FIX HACK WARN PERF NOTE TEST.
+  .env masked by cloak.nvim.
+- Python: per-project venv for libraries, pipx for CLIs (ruff, tldr), pyright for types.
+  Windows venvs activate at .venv/Scripts/activate; on WSL/Linux .venv/bin/activate.
 
 # Goals
 - Simple, maintainable code — complexity is a smell, not a feature
