@@ -898,3 +898,56 @@ ssh-keygen -F github.com >/dev/null 2>&1 || ssh-keyscan github.com >> ~/.ssh/kno
 echo "$(cmd)"   # SC2005 — captures output only to re-print it
 cmd             # identical, cleaner
 ```
+
+## ln — symbolic links
+
+```bash
+ln -s TARGET LINKNAME   # create LINKNAME as a symlink pointing at TARGET
+ln -sf TARGET LINKNAME  # -f: replace an existing LINKNAME first (idempotent re-runs)
+#   -s = symbolic (a path pointer; can cross filesystems, point at dirs)
+#   without -s = HARD link (same inode; same filesystem only)
+```
+
+Use an ABSOLUTE target so the link resolves from anywhere:
+
+```bash
+ln -sf "$HOME/repo/dotfiles/.zshrc" "$HOME/.zshrc"   # ~/.zshrc IS the repo file now
+```
+
+Inspect:
+
+```bash
+ls -l ~/.zshrc        # shows  .zshrc -> /home/me/repo/dotfiles/.zshrc
+readlink -f ~/.zshrc  # resolves the final real path
+```
+
+### Gotchas
+
+- **Atomic-save breaks links.** Tools that write a temp file then rename over the
+  target REPLACE the symlink with a regular file. Neovim edits in place (safe);
+  `p10k configure` and similar may break the link — re-run `ln -sf` if so.
+- **`sed -i` breaks links too** — it rewrites by replace, severing the symlink
+  (or editing the real target). Don't `sed -i` a symlinked file you want to stay linked.
+- **`chmod`/`cp` follow the link to the TARGET.** `chmod +x` on a symlink changes
+  the repo file's mode. For a symlinked SCRIPT, commit the executable bit at the
+  source instead: `git update-index --chmod=+x path/to/script` (a fresh clone of a
+  100644 file is NOT executable, even if your local copy is).
+- **`ln -sf TARGET DIR/`** where DIR is a symlink-to-directory can create the link
+  INSIDE the dir — fine for file targets, surprising for dirs.
+- **Dangling links** point at something gone (moved/deleted repo, cleaned temp dir).
+  `ls -l` shows them; `find . -xtype l` lists broken ones.
+
+## find: symlinks (-type l vs -xtype l)
+
+```bash
+find . -type l        # symlinks themselves (working OR broken)
+find . -xtype l       # BROKEN/dangling symlinks only — target missing or unresolvable
+#   -type  checks the LINK's own type
+#   -xtype checks the TARGET's type; a healthy link resolves to f/d/…, so it's
+#          never 'l' — only a broken link reports as 'l' (target can't be stat'd)
+find . -xtype f       # symlinks that point at a regular file (resolve the target)
+readlink -f LINK      # print the final resolved path a link points to (empty/err if broken)
+```
+
+Use `find ~ -xtype l` after moving or deleting a repo to spot dotfile symlinks
+that now dangle.
