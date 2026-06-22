@@ -7,6 +7,38 @@ tags: []
 
 # Journal
 
+## 2026-06-22 — WSL dev-env: tmux auto-start, clipboard mechanism, dotfile symlinks
+
+**tmux auto-start ordering.** The auto-start `exec tmux` block must sit ABOVE p10k's
+instant-prompt block in .zshrc — otherwise p10k grabs the TTY first and tmux dies with
+"open terminal failed: not a terminal." Key insight: guard it with `[[ -t 1 ]]` (is fd 1
+a tty?) so non-interactive/no-tty shells skip it cleanly. Deleted the stale duplicate
+tmux block lower in .zshrc (it was below instant-prompt → would re-trigger the bug).
+
+**Per-launch tmux opt-out.** Added a `NO_TMUX` escape hatch: `[[ -z "${NO_TMUX:-}" ]]`
+in the guard, plus a second WezTerm launch_menu entry that runs
+`wsl.exe -d Debian --cd ~ -- env NO_TMUX=1 zsh -li`. The `--` ends wsl.exe's own options;
+the rest runs inside the distro. `env NO_TMUX=1` sets the var, interactive-login zsh
+sources .zshrc, sees NO_TMUX, skips the auto-start → plain shell on demand.
+
+**Clipboard — corrected understanding.** Copy reaches the Windows clipboard via OSC 52,
+NOT via clip.exe. `set-clipboard external` (the default, confirmed via
+`tmux show -gv set-clipboard`) makes tmux emit an OSC 52 escape sequence on every copy;
+WezTerm decodes it onto the Windows clipboard. This fires for `copy-selection-and-cancel`
+too — independent of `copy-command`. So `y` already works; removed the redundant
+`if-shell … copy-command 'clip.exe'` line. Kept the vi `v`/`y` binds (they override
+tmux's non-Vim defaults: Space/Enter, and v=rectangle-toggle).
+
+**Dotfiles → symlinks.** Step 9 of wsl-setup.sh now symlinks (ln -sf) instead of copying,
+guarded: `[[ -n "$CLONED_DOTFILES" ]]` → cp (temp-clone standalone run), else → ln -sf
+(persistent repo). Live working copy: edits in ~ ARE edits in the repo, no drift.
+Committed the executable bit on tmux-sessionizer at the source
+(`git update-index --chmod=+x`, 100644 → 100755) and dropped the script's `chmod +x` —
+a fresh clone now gets an executable file the symlink inherits.
+
+**Open threads / resume:** none — verified working end to end (re-ran wsl-setup.sh, tmux
+auto-starts, no-tmux launch entry works, clipboard yanks to Windows, sessionizer runs).
+
 ## 2026-06-17 — WSL dev-env: wsl-setup.sh hardening, tmux/zsh wiring, git workflow
 
 ### Covered (concept → key insight)

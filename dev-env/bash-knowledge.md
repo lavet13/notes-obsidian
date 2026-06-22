@@ -951,3 +951,35 @@ readlink -f LINK      # print the final resolved path a link points to (empty/er
 
 Use `find ~ -xtype l` after moving or deleting a repo to spot dotfile symlinks
 that now dangle.
+
+## TTY vs PTY
+
+- **tty** ("teletypewriter") — the kernel device for a terminal endpoint: carries I/O,
+  line editing, signals (Ctrl-C → SIGINT), and the session's controlling terminal.
+- **pty** ("pseudo-terminal") — a software tty handed out when there's no real hardware
+  terminal. Two ends: MASTER (held by the emulator/tmux/ssh, drives the screen) and
+  SLAVE (`/dev/pts/N`, what your shell sees as its tty — indistinguishable from real).
+- Stacking: WezTerm opens a pty → runs zsh on the slave; tmux opens its OWN pty per pane.
+  Each layer presents a tty to what runs above it.
+
+```bash
+tty            # print this shell's terminal device, e.g. /dev/pts/3
+[[ -t 1 ]]     # test: is fd 1 (stdout) a tty? false for pipes, non-interactive, no-pty
+```
+
+Gotcha: a non-interactive `zsh -c` or a popup without a pty has NO tty — anything that
+needs a terminal (or `[[ -t 1 ]]`) will skip/fail there.
+
+## `--` end-of-options (with wsl.exe)
+
+`--` tells a command "my options end here; treat the rest literally." Same marker as
+`bash -s --` and `set -- …` in these notes.
+
+```bash
+wsl.exe -d Debian --cd ~ -- env NO_TMUX=1 zsh -li
+#       └── wsl.exe's flags ──┘ └── command run INSIDE the distro ──┘
+#   without --, wsl.exe tries to parse `env …` (esp. a leading -) as its own options
+```
+
+`env VAR=val cmd` sets VAR in the environment, then execs cmd with it — here, launch an
+interactive-login zsh (`-li`) with NO_TMUX set so .zshrc's auto-start guard skips.
