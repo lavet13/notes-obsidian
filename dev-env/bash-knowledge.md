@@ -812,6 +812,9 @@ fdfind 'tmp.*' /tmp       # REGEX: t m p <any-char>*       — dot = any char, *
 | `?`       | any single char                | zero-or-one of preceding            |
 | anchored? | whole-name match               | substring unless `^ $`              |
 
+> [!NOTE]
+> anchored?, I need an example here.
+
 fd is also recursive-by-default, regex-by-default, and skips hidden/gitignored; find needs an
 explicit start path (defaults to cwd) and matches everything.
 
@@ -977,7 +980,7 @@ needs a terminal (or `[[ -t 1 ]]`) will skip/fail there.
 
 ```bash
 wsl.exe -d Debian --cd ~ -- env NO_TMUX=1 zsh -li
-#       └── wsl.exe's flags ──┘ └── command run INSIDE the distro ──┘
+# └── wsl.exe's flags ──┘  └── command run INSIDE the distro ──┘
 #   without --, wsl.exe tries to parse `env …` (esp. a leading -) as its own options
 ```
 
