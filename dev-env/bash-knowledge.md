@@ -986,3 +986,48 @@ wsl.exe -d Debian --cd ~ -- env NO_TMUX=1 zsh -li
 
 `env VAR=val cmd` sets VAR in the environment, then execs cmd with it — here, launch an
 interactive-login zsh (`-li`) with NO_TMUX set so .zshrc's auto-start guard skips.
+
+## Signals (the ones worth knowing)
+
+A signal is an async notification the kernel/another process sends to a process.
+List them all with `kill -l`. Prefer NAMES over numbers (numbers vary by arch for
+a few; the common ones below are stable on Linux x86-64).
+
+| Name    | No. | Default action     | Typically from                          | Trappable? |
+| ------- | --- | ------------------ | --------------------------------------- | ---------- |
+| SIGHUP  | 1   | terminate          | terminal/session closed; also "reload"  | yes        |
+| SIGINT  | 2   | terminate          | Ctrl-C                                  | yes        |
+| SIGQUIT | 3   | terminate + core   | Ctrl-\                                  | yes        |
+| SIGABRT | 6   | terminate + core   | abort() / assertion failure             | yes        |
+| SIGKILL | 9   | terminate (forced) | `kill -9` — last resort                 | **NO**     |
+| SIGSEGV | 11  | terminate + core   | invalid memory access                   | yes        |
+| SIGPIPE | 13  | terminate          | write to a pipe with no reader          | yes        |
+| SIGTERM | 15  | terminate (polite) | `kill` default; graceful shutdown       | yes        |
+| SIGTSTP | 20  | stop (suspend)     | Ctrl-Z                                  | yes        |
+| SIGSTOP | 19  | stop (suspend)     | `kill -STOP` — pause a process          | **NO**     |
+| SIGCONT | 18  | continue           | `fg`/`bg`, `kill -CONT` — resume        | yes        |
+| SIGUSR1 | 10  | terminate          | user-defined (whatever you trap it for) | yes        |
+| SIGUSR2 | 12  | terminate          | user-defined                            | yes        |
+| SIGCHLD | 17  | ignored            | a child stopped/exited                  | yes        |
+
+```bash
+kill -l                 # list all signal names
+kill -TERM 1234         # polite: ask PID 1234 to shut down (== kill -15, == default kill)
+kill -9 1234            # forced: kernel kills it; no cleanup, can't be caught
+kill -STOP 1234         # pause;  kill -CONT 1234 resumes it
+```
+
+### Gotchas
+
+- **SIGKILL (9) and SIGSTOP (19) cannot be caught, blocked, or ignored** — the kernel
+  handles them directly. That's why `kill -9` always works and why you can't trap it
+  for cleanup. Reach for it only after a polite `SIGTERM` fails.
+- **SIGTERM is the default** for `kill` — always try it first; it lets the program run
+  its cleanup (its EXIT/TERM trap). SIGKILL skips all of that.
+- **Ctrl-C = SIGINT, Ctrl-Z = SIGTSTP, Ctrl-\ = SIGQUIT** — keyboard signals go to the
+  foreground process group of the terminal.
+- **SIGHUP** historically meant "the terminal hung up"; daemons (nginx, etc.) repurpose
+  it to mean "reload config without restarting." `nohup` and `disown` shield a process
+  from it so it survives the terminal closing.
+- Ties to `trap` (see this file): `trap 'handler' INT TERM` catches the trappable ones;
+  EXIT is not a real signal but a bash pseudo-signal that fires on any exit.
