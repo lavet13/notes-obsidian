@@ -1031,3 +1031,53 @@ kill -STOP 1234         # pause;  kill -CONT 1234 resumes it
   from it so it survives the terminal closing.
 - Ties to `trap` (see this file): `trap 'handler' INT TERM` catches the trappable ones;
   EXIT is not a real signal but a bash pseudo-signal that fires on any exit.
+
+## SSH with GitHub: auth test + "permission denied (publickey)"
+
+```bash
+ssh -T git@github.com   # -T = no PTY (don't allocate a terminal). GitHub never gives a
+                        # shell, so -T avoids "PTY allocation request failed". Success:
+                        # "Hi <user>! You've successfully authenticated, but GitHub does
+                        # not provide shell access." — that greeting IS the success.
+```
+
+`-T` is the opposite of `-t` (force-allocate a PTY). For a service that only does git
+over ssh, you want -T — there's no interactive terminal to ask for.
+
+### Fixing "Permission denied (publickey)"
+
+Means no offered key was accepted. Work down this list:
+
+```bash
+ssh -vT git@github.com          # -v verbose: shows which keys are offered & why refused
+ls -l ~/.ssh                    # keys present? (id_ed25519 + id_ed25519.pub)
+```
+
+Common causes & fixes:
+
+1. **Wrong permissions** — ssh ignores keys that are too open.
+```bash
+   chmod 700 ~/.ssh
+   chmod 600 ~/.ssh/id_ed25519        # private key: owner-only
+   chmod 644 ~/.ssh/id_ed25519.pub    # public key
+```
+2. **Key not registered on GitHub** — copy the PUBLIC key and add it at
+   github.com → Settings → SSH and GPG keys:
+```bash
+   cat ~/.ssh/id_ed25519.pub          # paste this (the .pub, never the private one)
+```
+3. **Agent doesn't have the key loaded** (or a non-default filename):
+```bash
+   eval "$(ssh-agent -s)" && ssh-add ~/.ssh/id_ed25519
+```
+4. **Remote is HTTPS, not SSH** — `git push` then asks for a password, which GitHub
+   removed in 2021. Switch the remote to SSH:
+```bash
+   git remote -v                                         # check current URL
+   git remote set-url origin git@github.com:USER/REPO.git
+```
+
+### Gotcha (WSL specifically)
+
+Keys copied from Windows (`/mnt/c/Users/<you>/.ssh`) arrive without Unix perms, so ssh
+refuses them until you re-`chmod` as above — which wsl-setup.sh does in step 5.
