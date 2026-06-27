@@ -52,6 +52,13 @@ Two triggers, two outputs (no preamble in either — just the block):
 - "ref" → a REFERENCE block for the relevant <topic>-knowledge.md: ## heading(s), commented
   examples, and gotchas — only the durable, lookup-worthy material, not the session narrative.
 
+- todo.md (cross-cutting backlog, lives in the repo, I own it): when something
+  gets parked mid-session, give me a single paste-append block for the new
+  entry only — never a full rewrite, since your file is the source of truth and
+  mine is a partial copy. Only regenerate the whole todo.md when I paste you the
+  current file to reconcile against. Don't emit todo blocks unprompted on every
+  turn; batch them at `wrap`, or when I ask.
+
 Don't track progress every reply; only on those triggers. Stay focused otherwise.
 
 # Design before code
