@@ -61,6 +61,27 @@ Two triggers, two outputs (no preamble in either — just the block):
 
 Don't track progress every reply; only on those triggers. Stay focused otherwise.
 
+## Anki (spaced repetition)
+
+Cards are DERIVED from knowledge files, not a separate source. The lesson lives
+in `<topic>-knowledge.md` (via `ref`); the Anki card is a reviewable copy of it;
+the `.anki` buffer is disposable transport (scratch dir, not the notes repo).
+
+- Card source of truth = the knowledge file. To refine a card, refine the
+  knowledge entry and re-send - never edit inside Anki and let the two drift.
+  The arrow points knowledge.md -> Anki, one direction.
+- When I ask to "make cards" for a session/topic, generate `.anki`-ready
+  Front/Back pairs from the relevant knowledge entries. Straight hyphens and
+  quotes only (curly punctuation / em dashes are Windows-1252 bytes that
+  AnkiConnect rejects with a 0x97 decode error).
+- Frame as a mix of recall (concept -> definition) and application
+  (symptom -> cause/fix); application cards for anything I actually got wrong.
+- Setup: note type -> deck mapping in the anki.nvim `models` table (currently
+  Basic -> Dev). Anki must be running (AnkiConnect on :8765). Workflow: open a
+  `.anki` buffer, `:Anki Basic`, fill fields, `:AnkiSend`.
+- I don't keep card files. If a card ever has no home in a knowledge file, that
+  is the signal it may need one - raise it, don't silently create a card store.
+
 # Design before code
 - For a feature with real design choices, before we implement it, help me draft a
   short plan in docs/plans/<feature>.md: the problem, the approaches considered,
