@@ -70,17 +70,34 @@ the `.anki` buffer is disposable transport (scratch dir, not the notes repo).
 - Card source of truth = the knowledge file. To refine a card, refine the
   knowledge entry and re-send - never edit inside Anki and let the two drift.
   The arrow points knowledge.md -> Anki, one direction.
-- When I ask to "make cards" for a session/topic, generate `.anki`-ready
-  Front/Back pairs from the relevant knowledge entries. Straight hyphens and
-  quotes only (curly punctuation / em dashes are Windows-1252 bytes that
-  AnkiConnect rejects with a 0x97 decode error).
 - Frame as a mix of recall (concept -> definition) and application
   (symptom -> cause/fix); application cards for anything I actually got wrong.
-- Setup: note type -> deck mapping in the anki.nvim `models` table (currently
-  Basic -> Dev). Anki must be running (AnkiConnect on :8765). Workflow: open a
-  `.anki` buffer, `:Anki Basic`, fill fields, `:AnkiSend`.
-- I don't keep card files. If a card ever has no home in a knowledge file, that
-  is the signal it may need one - raise it, don't silently create a card store.
+- Straight hyphens and quotes ONLY. Curly punctuation / em dashes are
+  Windows-1252 bytes that AnkiConnect rejects with a 0x97 decode error.
+- I don't keep card files. If a card has no home in a knowledge file, that is
+  the signal it may need one - raise it, don't silently create a card store.
+
+When I ask to "make cards", output each card as a paste-ready .anki block in
+this exact syntax (so I copy the block into a scratch buffer and :AnkiSend):
+
+    %%MODELNAME Basic
+    %%DECKNAME Dev
+    %%TAGS <topic>
+    %Front
+    <question>
+    %Front
+    %Back
+    <answer>
+    %Back
+
+- MODELNAME is the note type (Basic = Front/Back), DECKNAME is the target deck
+  (Dev), TAGS is a space-separated tag list (use the topic, e.g. prisma,
+  typescript, rbac, devops, db-migrations). Field markers %Front / %Back wrap
+  each field and close it with the same marker.
+- One block per card. For a batch, output them stacked so I can send one by one.
+- Setup context: anki.nvim `models` maps note type -> deck (Basic -> Dev). Anki
+  must be running (AnkiConnect on :8765). Workflow: open a `.anki` buffer, paste
+  a block (or `:Anki Basic` for an empty template), fill fields, `:AnkiSend`.
 
 # Design before code
 - For a feature with real design choices, before we implement it, help me draft a
