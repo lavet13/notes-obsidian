@@ -109,20 +109,3 @@ join tables via their composite unique key), and gate any one-time backfill /
 env-bootstrap behind an emptiness check so it does not re-assert or resurrect
 state on repeat runs. Call the COMPILED seed directly in the container
 (`node dist/prisma/seed.js`) - no tsx, no network installs at deploy time.
-
-# Anki's cards
-
-Card 29 - silent hang diagnosis (application)
-
-Front: Ops - a container is Up, the process is alive, env is injected, but logs stop after one line and none of your startup logs appear (no crash, no stack trace). What class of failure is this?
-Back: A hang on an await to an unreachable external host - not a crash. A crash leaves a stack trace; silence after startup means a promise that never resolves (e.g. bot.init() calling a blocked API). Confirm by testing reachability from inside the container before touching code.
-
-Card 30 - confirm the layer (recall)
-
-Front: Debugging - what is the discipline before applying a fix to a production incident?
-Back: Confirm which layer is actually broken with evidence (ps, env echo, reachability test) before theorizing a fix. Different causes have different fixes; diagnose before you patch.
-
-Card 31 - fail loud not silent (application)
-
-Front: Resilience - an external call (e.g. bot.init to a network API) can hang forever with no log. How do you make the failure diagnosable?
-Back: Race it against a timeout (withTimeout(promise, ms, label) using Promise.race) so it rejects with a logged error and exits non-zero (container restarts) instead of becoming a silent zombie. Mitigates the symptom; does not fix the underlying reachability.
