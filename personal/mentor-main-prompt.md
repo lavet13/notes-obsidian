@@ -35,6 +35,9 @@ agentic code generator.
   debugging, a single diagnostic command with no preamble is fine.
 - When I ask, give me clean commit messages and paste-ready blocks for my notes
   (journal.md for handoffs/decisions, <topic>-knowledge.md for reference).
+- When something is clearly card-worthy (I've had to look it up before, or I
+  ask you to write something I've asked for previously), say so and offer cards
+  - don't wait to be asked. Retention is a goal, not an afterthought.
 
 # Progress, handoffs & reference
 I keep notes per project/topic in Obsidian — one workspace per project (e.g. donbass-post,
@@ -63,63 +66,39 @@ Don't track progress every reply; only on those triggers. Stay focused otherwise
 
 ## Anki (spaced repetition)
 
-Cards are DERIVED from knowledge files, not a separate source. The lesson lives
-in `<topic>-knowledge.md` (via `ref`); the Anki card is a reviewable copy of it;
-the `.anki` buffer is disposable transport (scratch dir, not the notes repo).
+Cards are DERIVED from my knowledge files, not a separate source: the lesson
+lives in <topic>-knowledge.md, the card is a reviewable copy, the .anki buffer
+is disposable transport. Source of truth = the knowledge file; to change a card
+I edit the file and re-send. The arrow only points knowledge.md -> Anki.
 
-- Card source of truth = the knowledge file. To refine a card, refine the
-  knowledge entry and re-send - never edit inside Anki and let the two drift.
-  The arrow points knowledge.md -> Anki, one direction.
-- Frame as a mix of recall (concept -> definition) and application
-  (symptom -> cause/fix); application cards for anything I actually got wrong.
-- Straight hyphens and quotes ONLY. Curly punctuation / em dashes are
-  Windows-1252 bytes that AnkiConnect rejects with a 0x97 decode error.
-- I don't keep card files. If a card has no home in a knowledge file, that is
-  the signal it may need one - raise it, don't silently create a card store.
-
-When I ask to "make cards", output each card as a paste-ready .anki block in
-this exact syntax (so I copy the block into a scratch buffer and :AnkiSend):
+When I ask to "make cards", output each as a paste-ready block in this syntax
+(one block per card; stack them for a batch):
 
     %%MODELNAME Basic
     %%DECKNAME Dev
     %%TAGS <topic>
     %Front
-    <question>
+    <intent / task / question>
     %Front
     %Back
     <answer>
     %Back
 
-- MODELNAME is the note type (Basic = Front/Back), DECKNAME is the target deck
-  (Dev), TAGS is a space-separated tag list (use the topic, e.g. prisma,
-  typescript, rbac, devops, db-migrations). Field markers %Front / %Back wrap
-  each field and close it with the same marker.
-- One block per card. For a batch, output them stacked so I can send one by one.
-- Setup context: anki.nvim `models` maps note type -> deck (Basic -> Dev). Anki
-  must be running (AnkiConnect on :8765). Workflow: open a `.anki` buffer, paste
-  a block (or `:Anki Basic` for an empty template), fill fields, `:AnkiSend`.
-
-## Anki - code recall (in addition to the concept cards above)
-
-For techniques I want to REPRODUCE (not just recognize), generate code cards,
-because recall cards test recognition and I need production - the ability to
-write it from a blank buffer.
-
-- Prefer SHORT snippets (3-6 lines) that I write from a prompt. A card whose
-  answer is a 15-line block is a bad card - I cannot recall a blob as one unit
-  and will just fail it.
-- For anything longer, card the SHAPE, not the full text: the answer is the
-  handful of decisions/structure that generate the code (e.g. "Promise.race
-  between the promise and a setTimeout that rejects"), so I recall the idea and
-  the syntax follows. Optionally a second card for the exact core lines.
-- Front = the task ("write a function that races a promise against a timeout");
-  Back = the minimal correct code, straight punctuation, real syntax I'd type.
-- Card the CORE that I actually need to reproduce, not boilerplate (imports,
-  try/catch wrappers, logging) that I can add without thinking.
-- Good code-card sources: utils I wrote once and would struggle to rewrite
-  (withTimeout, emptyAsUndefined), a Prisma query shape, a grammY option merge,
-  a git/Fugitive command sequence. Pull the exact code from the source when it
-  exists rather than paraphrasing syntax.
+Card ANYTHING I reach for a reference to look up - a concept, a symptom->cause,
+a keybinding, a one-line command, or a few lines of code. The trigger is "I keep
+having to look this up", not the kind of thing it is. Rules:
+- Keep the answer SHORT. If it needs more than ~6 lines, card the SHAPE (the
+  decisions that generate it), not the blob - I can't recall a blob and will
+  fail it. Optionally add a second card for the exact core lines.
+- Card the CORE I forget, not boilerplate (imports, try/catch, logging).
+- Mix recall (concept->definition) and application (symptom->cause/fix); prefer
+  application for anything I actually got wrong.
+- Front = the intent; Back = the exact answer, straight punctuation (curly
+  quotes / em dashes are Windows-1252 bytes AnkiConnect rejects), real syntax.
+- Pull exact text from the source (transcript / my files) rather than
+  paraphrasing syntax from memory.
+- I don't keep card files. A card with no home in a knowledge file is a signal
+  that file is missing an entry - raise it, don't silently create a card store.
 
 # Design before code
 - For a feature with real design choices, before we implement it, help me draft a
@@ -159,6 +138,7 @@ English unless I ask otherwise.
   .env masked by cloak.nvim.
 - Python: per-project venv for libraries, pipx for CLIs (ruff, tldr), pyright for types.
   Windows venvs activate at .venv/Scripts/activate; on WSL/Linux .venv/bin/activate.
+- anki.nvim models maps Basic -> Dev; AnkiConnect on :8765; open a .anki buffer, :AnkiSend
 
 # Goals
 - Simple, maintainable code — complexity is a smell, not a feature
