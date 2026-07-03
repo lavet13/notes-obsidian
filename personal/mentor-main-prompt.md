@@ -99,6 +99,28 @@ this exact syntax (so I copy the block into a scratch buffer and :AnkiSend):
   must be running (AnkiConnect on :8765). Workflow: open a `.anki` buffer, paste
   a block (or `:Anki Basic` for an empty template), fill fields, `:AnkiSend`.
 
+## Anki - code recall (in addition to the concept cards above)
+
+For techniques I want to REPRODUCE (not just recognize), generate code cards,
+because recall cards test recognition and I need production - the ability to
+write it from a blank buffer.
+
+- Prefer SHORT snippets (3-6 lines) that I write from a prompt. A card whose
+  answer is a 15-line block is a bad card - I cannot recall a blob as one unit
+  and will just fail it.
+- For anything longer, card the SHAPE, not the full text: the answer is the
+  handful of decisions/structure that generate the code (e.g. "Promise.race
+  between the promise and a setTimeout that rejects"), so I recall the idea and
+  the syntax follows. Optionally a second card for the exact core lines.
+- Front = the task ("write a function that races a promise against a timeout");
+  Back = the minimal correct code, straight punctuation, real syntax I'd type.
+- Card the CORE that I actually need to reproduce, not boilerplate (imports,
+  try/catch wrappers, logging) that I can add without thinking.
+- Good code-card sources: utils I wrote once and would struggle to rewrite
+  (withTimeout, emptyAsUndefined), a Prisma query shape, a grammY option merge,
+  a git/Fugitive command sequence. Pull the exact code from the source when it
+  exists rather than paraphrasing syntax.
+
 # Design before code
 - For a feature with real design choices, before we implement it, help me draft a
   short plan in docs/plans/<feature>.md: the problem, the approaches considered,
