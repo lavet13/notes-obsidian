@@ -1,9 +1,0 @@
-%%MODELNAME Basic
-%%DECKNAME Dev
-%%TAGS nvim
-%Front
-Resilience - an external call (e.g. bot.init to a network API) can hang forever with no log. How do you make the failure diagnosable?
-%Front
-%Back
-Race it against a timeout (withTimeout(promise, ms, label) using Promise.race) so it rejects with a logged error and exits non-zero (container restarts) instead of becoming a silent zombie. Mitigates the symptom; does not fix the underlying reachability.
-%Back
