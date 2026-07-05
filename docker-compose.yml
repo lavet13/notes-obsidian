@@ -1,0 +1,6 @@
+services:
+  repomix:
+    image: ghcr.io/yamadashy/repomix
+    volumes:
+      - ./:/app     # mounts entire project into /app (repomix's working directory)
+
