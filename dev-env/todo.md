@@ -1,1 +1,0 @@
-- [ ] VPS IPv6 outbound broken: default gw 2a12:bec4:1ac0::1 shows FAILED in `ip neigh` (no NDP reply). Diagnose if IPv6 is needed, else document as intentionally v4-only. [networking]
