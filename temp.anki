@@ -1,0 +1,11 @@
+%%MODELNAME Basic
+%%DECKNAME Dev
+%%TAGS typescript
+%Front
+Three ways to build the range 1..5 in TS/JS?
+%Front
+%Back
+for (let i = 1; i <= 5; i++) ...
+Array.from({ length: 5 }, (_, i) => i + 1)
+[...Array(5).keys()].map(i => i + 1)
+%Back
