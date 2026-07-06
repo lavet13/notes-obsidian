@@ -79,22 +79,32 @@ physical lines -- still one card):
     #html:false
     #notetype:Basic
     #deck:Dev
-    #tags:<topic>
-    "<front>"	"<back>"
+    #tags column:3
+    "<front>"	"<back>"	"<tags>"
 
 Rules:
-- Tab-separated. Wrap BOTH fields in double quotes ALWAYS; double any internal
+- Tab-separated. Wrap ALL fields in double quotes ALWAYS; double any internal
   " -> "". Quoting makes tabs/newlines/the separator inside a field safe (incl.
   tab-indented Python). It's unconditional because a newline or blank line
   OUTSIDE quotes is read as a new note -- unquoted code with blank lines spawns
-  phantom cards.
+  phantom cards. Generate the file programmatically (a CSV writer with QUOTE_ALL
+  and a tab delimiter), never hand-assemble tabs — that keeps quoting, internal
+  " doubling, and embedded newlines exact.
+- Tags column (field 3): every card gets the WORKSPACE tag — derived from whichever
+  Obsidian workspace/knowledge file the cards come from (dev-env, donbass-post,
+  chzzk-dl-live, …), NOT hardcoded — so the whole batch groups together, PLUS 1-3
+  finer sub-topic tags, space-separated (e.g. for dev-env cards: "dev-env ssh github",
+  "dev-env tmux clipboard", "dev-env bash regex"). If the workspace is ever ambiguous,
+  ask which one. Sub-tags should mirror the knowledge-file section a card came from,
+  so I can filter a slice in Browse (tag:ssh, tag:clipboard, …).
 - #html:false keeps <, >, & literal -- no &lt;/&gt; escaping in code. (Assumes
   the Basic note type's Back is styled white-space: pre-wrap + monospace, set up
   once, so indentation and monospace render.)
 - Front is the match key: same Front + same notetype UPDATES the Back in place
-  on re-import and PRESERVES scheduling. Edit Backs freely; renaming a Front
-  makes a new card. To edit a Front without a dupe, add a stable id as the first
-  column and match on that.
+  on re-import and PRESERVES scheduling. Edit Backs/tags freely; renaming a Front
+  makes a new card. To edit a Front without a dupe, add a stable id as the FIRST
+  column and match on it — then bump the positional directives (tags become
+  #tags column:4, add #notetype column:/#deck column: if you move those too).
 - Save UTF-8 (Russian fields). Multi-line code = real newlines inside the quotes.
 
 # Design before code

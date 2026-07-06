@@ -1,0 +1,184 @@
+#separator:Tab
+#html:false
+#notetype:Basic
+#deck:Dev
+#tags column:3
+"ln -sf TARGET LINKNAME -- what do -s and -f do?"	"-s = symbolic link (a path pointer; crosses filesystems, can point at dirs).
+-f = force: remove an existing LINKNAME first, so re-runs stay idempotent."	"dev-env symlinks"
+"Symlinked script runs locally, but a fresh git clone isn't executable. Fix?"	"Commit the +x bit at the source, not through the link:
+git update-index --chmod=+x path/to/script   (mode 100644 -> 100755)
+chmod through a symlink only changes your local target's mode; the repo still ships 644."	"dev-env symlinks git"
+"find: list only BROKEN (dangling) symlinks?"	"find . -xtype l
+-type l = the link itself (working OR broken); -xtype checks the TARGET, so a healthy
+link resolves to f/d and is never 'l' -- only a broken one reports as 'l'."	"dev-env find"
+"In zsh/bash, test whether fd 1 (stdout) is a terminal?"	"[[ -t 1 ]]
+-t N tests fd N; false for pipes, redirects, and non-interactive / no-pty shells.
+(-t 0 = stdin, -t 2 = stderr)"	"dev-env tty"
+"TTY vs PTY?"	"tty = kernel device for a terminal endpoint (I/O, line editing, signals, controlling term).
+pty = software tty when there's no hardware terminal. Two ends: MASTER (emulator/tmux/ssh
+holds it) and SLAVE (/dev/pts/N, what your shell sees as its tty)."	"dev-env tty linux"
+"wsl.exe: run a command INSIDE the distro after its own flags?"	"wsl.exe -d Debian --cd ~ -- env NO_TMUX=1 zsh -li
+-- ends wsl.exe's own options; everything after runs inside the distro."	"dev-env args wsl"
+"Set an env var for just one command's process, then exec it?"	"env VAR=val cmd
+e.g. env NO_TMUX=1 zsh -li  -- sets NO_TMUX, then execs an interactive-login zsh with it."	"dev-env env"
+"Which two signals cannot be caught, blocked, or ignored?"	"SIGKILL (9) and SIGSTOP (19). The kernel handles them directly -- that's why kill -9
+always works and why you can't trap it to run cleanup."	"dev-env signals"
+"kill's default signal, and why prefer it over -9?"	"SIGTERM (15) is the default. It lets the program run its cleanup (EXIT/TERM trap).
+SIGKILL (9) skips all cleanup -- last resort only, after SIGTERM fails."	"dev-env signals"
+"Ctrl-C, Ctrl-Z, Ctrl-backslash send which signals?"	"Ctrl-C = SIGINT, Ctrl-Z = SIGTSTP, Ctrl-backslash = SIGQUIT.
+Sent to the terminal's foreground process group."	"dev-env signals"
+"`for SIG in ""$(kill -l)""` runs once with everything joined. Why, and the fix?"	"Double quotes make the whole output ONE word (no splitting). Drop them:
+for SIG in $(kill -l); do echo ""$SIG""; done
+The rare case where you WANT word-splitting. (Or: kill -l | tr ' ' '\n')"	"dev-env signals quoting"
+"Check whether fg/bg is a builtin or a file on disk?"	"type fg    -> ""fg is a shell builtin""
+type -a NAME shows ALL matches (aliases + files). Builtins have no $PATH entry, so
+which / command -v can mislead. fg/bg MUST be builtins -- they touch the shell's job table."	"dev-env builtins"
+"Test GitHub SSH auth without requesting a shell?"	"ssh -T git@github.com
+-T = don't allocate a PTY (GitHub gives no shell). Success is the greeting:
+""Hi <user>! You've successfully authenticated, but GitHub does not provide shell access."""	"dev-env ssh github"
+"ssh -T vs ssh -t?"	"-T = do NOT allocate a PTY (for services with no interactive shell, like GitHub).
+-t = force-allocate a PTY."	"dev-env ssh"
+"git push over SSH -> ""Permission denied (publickey)"". First things to check?"	"ssh -vT git@github.com   (shows which keys are offered and why refused)
+1. perms: chmod 700 ~/.ssh; 600 private key; 644 .pub
+2. .pub registered on GitHub settings
+3. remote is HTTPS not SSH -> git remote set-url origin git@github.com:USER/REPO.git"	"dev-env ssh github"
+"git push asks for a password and fails. Why, and the fix?"	"GitHub removed HTTPS password auth (2021); the remote is HTTPS. Switch to SSH:
+git remote set-url origin git@github.com:USER/REPO.git"	"dev-env git ssh"
+"tmux: y is only copy-selection-and-cancel -- why does it still copy to the system clipboard?"	"OSC 52 via set-clipboard (default 'external'). On copy, tmux emits an OSC 52 escape
+sequence to the outer terminal, which sets the system clipboard. Fires on EVERY copy,
+independent of copy-command. WezTerm supports OSC 52 -> it lands on the Windows clipboard."	"dev-env tmux clipboard"
+"Which tmux copy commands use copy-command (e.g. clip.exe)?"	"Only copy-pipe* bindings (copy-pipe-and-cancel with no arg pipes to copy-command).
+copy-selection* does NOT use it -- but still reaches the clipboard via OSC 52."	"dev-env tmux clipboard"
+"tmux set-clipboard: external vs on?"	"external (default): tmux sets the OUTER terminal's clipboard on copy; ignores OSC 52
+from apps inside tmux.
+on: same, PLUS accepts OSC 52 from inside apps (needed for nested tmux).
+off: no OSC 52.
+Check: tmux show -gv set-clipboard"	"dev-env tmux clipboard"
+"Symptom: ""open terminal failed: not a terminal"" when auto-starting tmux from .zshrc. Cause?"	"The exec tmux block ran with no real TTY -- it sat BELOW p10k's instant-prompt block,
+which grabbed the TTY first. Fix: move it ABOVE the instant-prompt block and guard with
+[[ -t 1 ]]."	"dev-env tmux zsh"
+"The guards on the .zshrc tmux auto-start line, and why each?"	"[[ -z ""$TMUX"" ]]        not already in tmux (inner shell re-sources .zshrc)
+[[ -z ""${NO_TMUX:-}"" ]] opt-out escape hatch
+[[ -o interactive ]]    interactive shells only
+[[ -t 1 ]]              fd 1 is a real tty (cures ""not a terminal"")
+command -v tmux         don't error if tmux is missing"	"dev-env tmux zsh"
+"tmux: mode-keys vi is set, but v makes a block selection instead of a normal one. Why?"	"mode-keys vi only sets NAVIGATION. On recent tmux, v defaults to rectangle-toggle.
+For nvim-like visual mode you must bind it:
+bind-key -T copy-mode-vi 'v' send -X begin-selection
+(default copy keys are Space = begin-selection, Enter = copy-and-cancel)"	"dev-env tmux"
+"WezTerm: two entries bound to the same key+mods -- what happens?"	"The LAST entry in the keys table wins; the earlier one silently does nothing.
+Audit with: wezterm show-keys. Fix by moving one action to a free key."	"dev-env wezterm"
+"Is a symlinked ~/.p10k.zsh safe? When could it break?"	"Safe day-to-day: p10k is a THEME, sourced (read) each shell start -- reading never breaks
+a symlink. Only `p10k configure` (a manual WRITE) rewrites ~/.p10k.zsh and can replace the
+link with a regular file -- re-run ln -sf afterward."	"dev-env zsh p10k"
+"What does `set -euo pipefail` do (each flag)?"	"-e  exit on any command's non-zero exit
+-u  unset variable is an error
+-o pipefail  a pipe fails if ANY stage fails (no single-letter form)"	"dev-env strict-mode"
+"${VAR:-default} vs ${VAR-default} -- the colon?"	":-  use default if VAR is unset OR empty
+-   use default only if VAR is truly unset (empty stays empty)
+The colon means ""treat empty as unset too"". Same rule for :+ / + and :? / ?."	"dev-env expansion"
+"Under set -u, test ""is VAR set?"" without crashing on unset?"	"${VAR+x} -> ""x"" if set (even if empty), """" if unset. Never touches VAR's value.
+[[ -n ""${VAR+x}"" ]]   # set (maybe empty)
+[[ -n ""${VAR:+x}"" ]]  # set AND non-empty"	"dev-env expansion"
+"${VAR:?message} does what?"	"Use VAR if set+non-empty; otherwise print ""VAR: message"" to stderr and EXIT.
+Guard for required variables."	"dev-env expansion"
+"[[ ]] string/file tests: empty, non-empty, is-file, is-dir, non-empty-file?"	"[[ -z ""$V"" ]]  empty
+[[ -n ""$V"" ]]  non-empty
+[ -f PATH ]    regular file exists
+[ -d PATH ]    directory exists
+[ -s PATH ]    exists AND non-empty
+[ ! -f PATH ]  does NOT exist"	"dev-env test"
+"Numeric comparison operators in [[ ]]?"	"-eq -ne -lt -gt -le -ge   (equal, not-equal, <, >, <=, >=)
+e.g. [[ $N -gt 5 ]]. Note: == / < are for strings, these for numbers."	"dev-env test"
+"Why is `A && B || C` NOT a safe if/else?"	"C also runs if B fails (not just when A fails). Safe only when B can't fail
+(like echo). Otherwise use a real if."	"dev-env control-flow"
+"$(( )) is integer-only. Do float division and format to 2 decimals?"	"awk 'BEGIN { printf ""%.2f\n"", 10 / 3 }'   # 3.33
+or: echo ""scale=2; 10 / 3"" | bc          # 3.33"	"dev-env arithmetic"
+"Compare two floats in a bash condition?"	"bash [[ ]] can't. bc returns 1/0:
+if (( $(echo ""3.5 > 2.1"" | bc -l) )); then echo bigger; fi"	"dev-env arithmetic"
+"Send both stdout and stderr of a command to a file?"	"command &> file            # overwrite
+command &>> file           # append
+command > file 2>&1        # equivalent; ORDER matters (stdout->file first)"	"dev-env redirection"
+"The three standard file descriptors?"	"fd 0 = stdin (inbox), fd 1 = stdout (normal out), fd 2 = stderr (errors, kept
+separate so you can redirect it independently)."	"dev-env redirection"
+"`echo ""oops"" >&2` -- what does >&2 mean?"	"Send this output to fd 2 (stderr). The & means ""the file descriptor numbered 2"",
+not a file named 2. Without &, >2 would create a file called 2."	"dev-env redirection"
+"Here-doc: expand variables vs print literally?"	"cat << EOF      -> $HOME expands
+cat << 'EOF'    -> quoted delimiter: $HOME printed literally
+Here-string (single line to stdin): cmd <<< ""text"""	"dev-env heredoc"
+"Write a root-owned file from a heredoc (plain > is denied). How?"	"sudo tee /etc/some.conf << EOF ... EOF
+tee runs AS root; a plain `sudo cmd > file` redirect runs in YOUR shell and is denied.
+Add tee -a to append."	"dev-env tee"
+"Diff the OUTPUT of two commands (no temp files)?"	"diff <(cmd1) <(cmd2)
+<(cmd) turns a command's output into a temporary filename (/dev/fd/63) that
+file-expecting commands can read."	"dev-env process-substitution"
+"Array basics: all elements, count, last element?"	"""${arr[@]}""   all elements (each a separate word)
+""${#arr[@]}""  count
+""${arr[-1]}""  last
+Always quote ""${arr[@]}"" -- only that form preserves elements with spaces."	"dev-env arrays"
+"""${arr[@]}"" vs ""${arr[*]}"" (quoted)?"	"[@] -> each element a SEPARATE word (what you want)
+[*] -> all joined into ONE word by IFS
+Unquoted, both just split on whitespace. Same rule as ""$@"" vs ""$*""."	"dev-env arrays"
+"""$@"" vs ""$*"", and which to forward args unchanged?"	"""$@"" -> ""$1"" ""$2"" ""$3"" (each a separate word) -- use this to forward args.
+""$*"" -> ""$1 $2 $3"" (one joined word).
+e.g. wrapper() { ssh ""$HOST"" ""$@""; }"	"dev-env args"
+"Consume positional args one at a time in a while loop?"	"while [[ $# -gt 0 ]]; do
+  case ""$1"" in
+    --swap) ... ;;
+    *) echo ""unknown: $1""; exit 1 ;;
+  esac
+  shift    # $2->$1, decrements $#
+done"	"dev-env loops"
+"Why `local` inside a bash function?"	"Scopes the variable to the function. Without it, vars leak to global scope and
+can clobber outer variables. local username=""$1"""	"dev-env functions"
+"Bash special variables: $# $? $$ $! $0 ?"	"$#  arg count
+$?  exit code of last command
+$$  PID of current script
+$!  PID of last background command
+$0  script name"	"dev-env special-vars"
+"Regex match with capture groups in [[ ]] -- where do groups land?"	"[[ ""$s"" =~ ([a-z]+)-([0-9]+) ]]   # pattern UNquoted
+${BASH_REMATCH[0]}  whole match
+${BASH_REMATCH[1]}  group 1
+ERE only: no \d, no (?:...); use [0-9]."	"dev-env regex"
+"Why does sed need backslashes: \? \+ \( \) but grep -E doesn't?"	"sed defaults to BRE where ? + ( ) | are LITERAL and must be escaped to activate.
+ERE (grep -E, sed -E, [[ =~ ]]) makes them special by default. Opposite worlds."	"dev-env regex sed"
+"Parameter-expansion string ops: length, substring, uppercase, replace-all?"	"${#S}         length
+${S:0:8}      substring (start, len)
+${S^^}        uppercase   (${S,,} lowercase)
+${S//o/0}     replace all (${S/o/0} first only)"	"dev-env strings"
+"export a variable so child processes inherit it -- and prove it?"	"export NAME              # marks it as env var for children
+GREETING=""hi""; bash -c 'echo ""$GREETING""'   # empty (not inherited)
+export GREETING; bash -c 'echo ""$GREETING""' # hi"	"dev-env builtins"
+"Read a KEY=value file's vars into a subshell to grab one value?"	"DISTRO_ID=""$(. /etc/os-release && echo ""$ID"")""   # -> debian / ubuntu
+. FILE (== source) runs it in the CURRENT shell, so its vars become available.
+Only source files you trust -- it executes them."	"dev-env source"
+"Guarantee a temp dir is cleaned up however the script exits?"	"tmp=""$(mktemp -d)""
+trap 'rm -rf ""$tmp""' EXIT
+EXIT fires on normal exit, `exit`, set -e failure, and after signals -- the catch-all."	"dev-env trap"
+"Report which line/command failed, on error?"	"trap 'echo ""line $LINENO: [$BASH_COMMAND] exited $?"" >&2' ERR
+$LINENO current line, $BASH_COMMAND the command that ran, $? its exit code."	"dev-env trap"
+"Read input safely: prompt, hidden (password), raw?"	"read -rp ""Continue? [y/N] "" ans   # -r raw (backslash literal), -p prompt
+read -rsp ""Pass: "" pw             # -s silent (no echo)
+Always include -r."	"dev-env read"
+"Merge a directory's CONTENTS (incl. dotfiles) into another, no nesting?"	"cp -rT src dst      # -T: treat dst as the dir itself, don't nest
+cp -r src/. dst/    # the /. = contents incl. hidden files
+(cp -r src dst when dst exists -> nests as dst/src)"	"dev-env cp"
+"Skip existing files on copy without erroring (GNU)?"	"cp --update=none ...   # modern GNU form
+cp -n is DEPRECATED on GNU (Debian warns). Avoid it."	"dev-env cp"
+"`find ... -exec rm -f {} +` errors ""Is a directory"" on dirs. Fix?"	"Use -r: rm -f does NOT recurse into directories; rm -r does.
+find /tmp -iname 'tmp.*' -exec rm -r {} +"	"dev-env rm"
+"find: OR two name patterns and run one -exec on the group?"	"find . -type f \( -name '*.pub' -o -name 'known_hosts*' \) -exec chmod 644 {} +
+\( \) group (escaped), -o = OR, {} + batches (vs \; = one call per file)."	"dev-env find"
+"`find -name 'tmp.*'` vs `fd 'tmp.*'` -- same pattern, different meaning?"	"find -name: GLOB -- the dot is LITERAL, * = any run of chars.
+fd: REGEX -- . = any char, * = zero+ of the preceding atom.
+fd is also recursive/regex by default and skips hidden+gitignored."	"dev-env find fd"
+"Pipe a remote script to bash and pass it args?"	"curl -fsSL https://.../setup.sh | bash -s -- --swap 1G
+curl: -f fail on HTTP error, -s silent, -S show real errors, -L follow redirects.
+bash -s reads stdin; -- ends bash's opts, rest goes to the SCRIPT."	"dev-env curl devops"
+"Idempotent guard vs failure-swallow: the two || idioms?"	"GUARD:   [ -f .env ] || cp .env.example .env    # do it unless already done
+SWALLOW: grep -q X file || true                 # let it fail without killing set -e"	"dev-env idioms"
+"Add a host to known_hosts non-interactively (only if missing)?"	"ssh-keygen -F github.com >/dev/null 2>&1 || ssh-keyscan github.com >> ~/.ssh/known_hosts
+ssh-keygen -F = ""already known?"" (exit 0 if yes). Avoids the authenticity prompt hanging a script."	"dev-env ssh"
+"Three ways to build the range 1..5 in TS/JS?"	"for (let i = 1; i <= 5; i++) ...
+Array.from({ length: 5 }, (_, i) => i + 1)
+[...Array(5).keys()].map(i => i + 1)"	"dev-env typescript"
