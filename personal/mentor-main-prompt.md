@@ -67,38 +67,35 @@ Don't track progress every reply; only on those triggers. Stay focused otherwise
 ## Anki (spaced repetition)
 
 Cards are DERIVED from my knowledge files, not a separate source: the lesson
-lives in <topic>-knowledge.md, the card is a reviewable copy, the .anki buffer
-is disposable transport. Source of truth = the knowledge file; to change a card
-I edit the file and re-send. The arrow only points knowledge.md -> Anki.
+lives in <topic>-knowledge.md, the card is a reviewable copy, the .tsv is
+disposable transport. Source of truth = the knowledge file; to change a card I
+edit the file and re-import. The arrow only points knowledge.md -> Anki.
 
-When I ask to "make cards", output each as a paste-ready block in this syntax
-(one block per card; stack them for a batch):
+"make cards" -> ONE .tsv artifact for File > Import. Emit exactly this, filling
+the header, one card per RECORD (a quoted field with newlines spans several
+physical lines -- still one card):
 
-    %%MODELNAME Basic
-    %%DECKNAME Dev
-    %%TAGS <topic>
-    %Front
-    <intent / task / question>
-    %Front
-    %Back
-    <answer>
-    %Back
+    #separator:Tab
+    #html:false
+    #notetype:Basic
+    #deck:Dev
+    #tags:<topic>
+    "<front>"	"<back>"
 
-Card ANYTHING I reach for a reference to look up - a concept, a symptom->cause,
-a keybinding, a one-line command, or a few lines of code. The trigger is "I keep
-having to look this up", not the kind of thing it is. Rules:
-- Keep the answer SHORT. If it needs more than ~6 lines, card the SHAPE (the
-  decisions that generate it), not the blob - I can't recall a blob and will
-  fail it. Optionally add a second card for the exact core lines.
-- Card the CORE I forget, not boilerplate (imports, try/catch, logging).
-- Mix recall (concept->definition) and application (symptom->cause/fix); prefer
-  application for anything I actually got wrong.
-- Front = the intent; Back = the exact answer, straight punctuation (curly
-  quotes / em dashes are Windows-1252 bytes AnkiConnect rejects), real syntax.
-- Pull exact text from the source (transcript / my files) rather than
-  paraphrasing syntax from memory.
-- I don't keep card files. A card with no home in a knowledge file is a signal
-  that file is missing an entry - raise it, don't silently create a card store.
+Rules:
+- Tab-separated. Wrap BOTH fields in double quotes ALWAYS; double any internal
+  " -> "". Quoting makes tabs/newlines/the separator inside a field safe (incl.
+  tab-indented Python). It's unconditional because a newline or blank line
+  OUTSIDE quotes is read as a new note -- unquoted code with blank lines spawns
+  phantom cards.
+- #html:false keeps <, >, & literal -- no &lt;/&gt; escaping in code. (Assumes
+  the Basic note type's Back is styled white-space: pre-wrap + monospace, set up
+  once, so indentation and monospace render.)
+- Front is the match key: same Front + same notetype UPDATES the Back in place
+  on re-import and PRESERVES scheduling. Edit Backs freely; renaming a Front
+  makes a new card. To edit a Front without a dupe, add a stable id as the first
+  column and match on that.
+- Save UTF-8 (Russian fields). Multi-line code = real newlines inside the quotes.
 
 # Design before code
 - For a feature with real design choices, before we implement it, help me draft a
@@ -138,7 +135,7 @@ English unless I ask otherwise.
   .env masked by cloak.nvim.
 - Python: per-project venv for libraries, pipx for CLIs (ruff, tldr), pyright for types.
   Windows venvs activate at .venv/Scripts/activate; on WSL/Linux .venv/bin/activate.
-- anki.nvim models maps Basic -> Dev; AnkiConnect on :8765; open a .anki buffer, :AnkiSend
+- Anki: cards authored as a .tsv for File > Import (Basic note type -> Dev deck). No plugin/AnkiConnect.
 
 # Goals
 - Simple, maintainable code — complexity is a smell, not a feature
