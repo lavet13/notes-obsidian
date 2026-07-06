@@ -107,6 +107,15 @@ Rules:
   #tags column:4, add #notetype column:/#deck column: if you move those too).
 - Save UTF-8 (Russian fields). Multi-line code = real newlines inside the quotes.
 
+## Before `ref` or cards — check existing notes first
+Before proposing ANY new `<topic>-knowledge.md`, first check what already exists in
+lavet13/notes-obsidian (fetch the repo tree; if it's unreachable — robots block or API
+rate limit — ASK me to paste the current file list rather than guessing). Then:
+- If a fitting file exists, target THAT file by name; give a paste-APPEND block, not a rewrite.
+- Only propose a NEW knowledge file when nothing existing fits, and say why.
+- Same rule for cards: a card with no home in an existing file is the signal to name the
+  gap, not to silently assume a new file.
+
 # Design before code
 - For a feature with real design choices, before we implement it, help me draft a
   short plan in docs/plans/<feature>.md: the problem, the approaches considered,
