@@ -1,0 +1,166 @@
+#separator:Tab
+#html:false
+#notetype:Basic
+#deck:Dev
+#tags column:3
+"TypeScript - write a generic withTimeout(promise, ms, label) that rejects if the promise doesn't settle in time (the core, no imports)."	"function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms),
+    ),
+  ]);
+}"	"donbass-post typescript resilience"
+"What's the SHAPE of a promise timeout (to reconstruct withTimeout)?"	"Promise.race([ theRealPromise, aNewPromise<never> that setTimeout(...)s a reject after ms ]).
+Settles with whichever finishes first: the real value, or the timeout's rejection.
+Type the timeout promise <never> since it only ever rejects."	"donbass-post typescript resilience"
+"SOCKS proxy - socks5:// vs socks5h://, and which bypasses a client-side DNS block?"	"socks5:// resolves the hostname CLIENT-side, then connects through the proxy.
+socks5h:// makes the PROXY do the DNS.
+If the client's network blocks DNS for the target (e.g. Telegram from Russia), use socks5h -
+then lookup + connection both happen at the proxy; the client only needs the proxy's IP."	"donbass-post devops proxy"
+"grammY - route new Bot() through a SOCKS5 proxy ONLY when a proxy URL is set (inert otherwise)."	"new Bot<TContext>(token, {
+  client: proxyUrl
+    ? { baseFetchConfig: { agent: new SocksProxyAgent(proxyUrl), compress: true } }
+    : undefined,
+});"	"donbass-post grammy proxy"
+"A bot in a blocked region can't reach an external API. Smallest fix without a full VPN/tunnel?"	"Point the HTTP client at a SOCKS5 proxy on a VPS in an unblocked region
+(grammY: client.baseFetchConfig.agent = new SocksProxyAgent(url)).
+Only that app's traffic is routed; no container-level routing/tunnel needed.
+Use socks5h so DNS happens at the proxy. Gate on an env var so it stays inert where the API is reachable."	"donbass-post devops proxy"
+"curl - what does -x do, and how does it differ from -X?"	"-x (lowercase) = --proxy: route the request THROUGH a proxy
+  (e.g. -x socks5h://user:pass@ip:1080).
+-X (uppercase) = --request: set the HTTP method (-X POST).
+One letter apart, completely different."	"donbass-post curl devops"
+"Env files - when does a var belong in .env.production vs the base .env?"	".env.production is for OVERRIDES - vars whose VALUE differs by environment
+(e.g. DATABASE_URL host: localhost vs postgres:5432).
+A var simply absent in dev and present in prod (e.g. TELEGRAM_PROXY) is NOT an override -
+put it in the base .env (the file actually loaded), empty locally.
+First confirm which file the runtime reads (dotenv loads .env by default, not .env.production)."	"donbass-post devops env"
+"You add a prod-only env var but the app doesn't pick it up. First thing to verify?"	"Which env file the runtime actually LOADS. dotenv loads .env by default, not .env.production,
+unless explicitly pointed at it. Confirm with:
+  exec <svc> sh -c 'echo ${VAR:+set}'
+checks the process environment directly. If empty, the var is in a file the app never reads."	"donbass-post devops env"
+"Zod - a generic helper mapping a blank/whitespace env string to undefined BEFORE the inner schema runs."	"function emptyAsUndefined<T extends z.ZodType>(schema: T) {
+  return z.preprocess((val) => {
+    if (typeof val === ""string"" && val.trim() === """") return undefined;
+    return val;
+  }, schema);
+}"	"donbass-post zod env"
+"Zod - why does z.coerce.number().optional() turn an empty env string into 0, and the fix?"	"coerce runs FIRST (Number("""") === 0), before .optional() sees the value -
+so """" becomes 0 and .optional() never fires.
+Fix: z.preprocess maps """" -> undefined BEFORE coercion, restoring the meaning of ""absent""
+so .optional() and .refine() work."	"donbass-post zod env"
+"Zod - preprocess vs transform: which runs when, and which cleans a blank env var?"	"preprocess runs BEFORE validation (input unknown) - use it to CLEAN input (blank -> undefined).
+transform runs AFTER validation - use it to RESHAPE a valid value.
+For a blank env var: preprocess, so the cleaned value is what gets validated."	"donbass-post zod env"
+"Zod - the .transform().pipe() equivalent of preprocess, and the one gotcha?"	"z.unknown().transform(clean).pipe(schema) - transform's OUTPUT feeds pipe's schema as input
+(like cat | grep). Gotcha: a block-body arrow (val) => { ... } with no return returns undefined -
+you MUST explicitly return val for the pass-through case.
+preprocess reads clearer for cleaning; pipe shines when both stages are real schemas."	"donbass-post zod"
+"Prisma - find-or-create a TelegramUser by chatId in a transaction, using const + ?? (no mutable let)."	"const found = await tx.telegramUser.findUnique({
+  where: { chatId: BigInt(chatId) },
+  select: { id: true, chatId: true },
+});
+const user = found ?? (await tx.telegramUser.create({
+  data: { chatId: BigInt(chatId), isActive: true },
+  select: { id: true, chatId: true },
+}));"	"donbass-post prisma"
+"Prisma - fetch a user's permission names as a Set, gating account (top-level) and roles (nested)."	"const user = await prisma.telegramUser.findUnique({
+  where: { chatId: userId, isActive: true },        // account gate (parent)
+  select: {
+    userRoles: {
+      where: { revokedAt: null },                   // role gate (children)
+      select: { role: { select: { rolePermissions: {
+        select: { permission: { select: { name: true } } },
+      } } } },
+    },
+  },
+});
+if (!user) return new Set();
+return new Set(user.userRoles.flatMap((ur) =>
+  ur.role.rolePermissions.map((rp) => rp.permission.name)));"	"donbass-post prisma rbac"
+"Prisma - soft-delete revoke: stamp revoked_at on a user's manager role only, don't re-revoke, report if anything changed."	"const { count } = await prisma.userRole.updateMany({
+  where: {
+    userId: user.id,
+    role: { name: Roles.MANAGER },
+    revokedAt: null, // guard: don't overwrite an existing revocation timestamp
+  },
+  data: { revokedAt: new Date() },
+});
+return count > 0 ? ""revoked"" : ""not_a_manager"";"	"donbass-post prisma rbac"
+"Prisma - why prefer updateMany over update to revoke one row in a many-to-many join by a far-side name?"	"update needs the composite key (userId_roleId) and THROWS P2025 if the row doesn't exist.
+updateMany filters via the relation (role: { name: MANAGER }), needs no separate role lookup,
+returns { count } instead of throwing, and lets you guard with revokedAt: null.
+count tells you whether anything changed."	"donbass-post prisma"
+"Prisma - make a join-table insert idempotent using its composite unique key."	"await prisma.rolePermission.upsert({
+  where: { roleId_permissionId: { roleId: r.id, permissionId: p.id } },
+  update: {}, // nothing to change - link exists or doesn't
+  create: { roleId: r.id, permissionId: p.id },
+});"	"donbass-post prisma"
+"Prisma - gated bootstrap: seed managers from env ONLY when zero active manager assignments exist."	"const activeManagerCount = await prisma.userRole.count({
+  where: {
+    revokedAt: null,
+    role: { name: Roles.MANAGER },
+    user: { isActive: true },
+  },
+});
+if (activeManagerCount > 0) { /* skip - runtime owns the list */ }
+else { /* seed from MANAGER_CHAT_IDS */ }"	"donbass-post prisma rbac"
+"Prisma - a chatId lookup returns null for a row you KNOW exists. First thing to check?"	"Whether the column is BigInt and you passed a raw number. Wrap it: where: { chatId: BigInt(chatId) }.
+A number-vs-BigInt mismatch matches nothing silently - the classic 'can't find an existing row' cause."	"donbass-post prisma"
+"Prisma - top-level where vs a where nested inside select?"	"Top-level where decides WHETHER THE PARENT ROW returns.
+A nested where (inside select/include) filters WHICH CHILDREN come back - it does NOT gate the parent.
+some/none/every in a top-level where gate the PARENT by its children."	"donbass-post prisma"
+"TypeScript - the two ways to make 'forgot a case' a compile error (control flow + data)."	"function assertNever(x: never): never { throw new Error(`Unhandled: ${JSON.stringify(x)}`); }
+switch (r) { case ""a"": return; default: return assertNever(r); }
+
+const ICONS: Record<Union, string> = { /* one entry per member or it won't compile */ };"	"donbass-post typescript"
+"TypeScript - narrow away undefined for the rest of a function without a cast or if/else."	"if (rootChatId === undefined) {
+  console.warn(""not set - skipping"");
+  return; // or throw
+}
+// rootChatId is now `number`, not `number | undefined` - control-flow narrowing"	"donbass-post typescript"
+"TypeScript - .includes(""*"") on a tuple-union errors with 'not assignable to never'. Why, and fix?"	"as const makes each permissions a readonly tuple of literals; the union's .includes arg type is
+the INTERSECTION of all tuples = never. Fix: flatten first, then filter element-by-element -
+.flatMap(r => r.permissions).filter(p => p !== ""*"") - so you operate on individual strings."	"donbass-post typescript"
+"grammY - safely parse a chatId argument from a command's text and reject non-numeric input."	"const parts = ctx.message?.text?.trim().split(/\s+/).slice(1) ?? [];
+const chatId = parseInt(parts[0] ?? """", 10);
+if (isNaN(chatId)) { /* reply ""invalid chat id"", return */ }"	"donbass-post grammy"
+"Git - undo a PUSHED commit vs a LOCAL one. Which tool for each?"	"Pushed: git revert <commit> - NEW inverse commit, preserves history, safe to share.
+Local-only: git reset --soft/--mixed/--hard HEAD~1 - moves the pointer, rewrites history.
+Rule: pushed -> revert, local -> reset."	"donbass-post git undo"
+"Git reset - what do --soft, --mixed, --hard each keep or discard?"	"--soft HEAD~1: undo commit, changes stay STAGED.
+--mixed (default): undo commit, changes kept but UNSTAGED.
+--hard: undo commit AND discard the changes (destructive).
+Only --hard loses work."	"donbass-post git undo"
+"Git - discard uncommitted edits to a file, and unstage a file keeping its edits."	"Discard working-tree edits: git restore <file>.
+Unstage but keep edits: git restore --staged <file>.
+(restore replaced the old confusing ""checkout -- <file>"" / ""reset HEAD <file>"".)"	"donbass-post git undo"
+"Fugitive - from the :Git status buffer, which mapping rewords the last commit?"	"cw - maps to :Git commit --amend and opens the message editor.
+(ce amends WITHOUT editing the message, reusing it.) Only on UNPUSHED commits."	"donbass-post git fugitive"
+"Git - mark a tracked file executable without changing its content."	"git update-index --chmod=+x path/to/script.sh"	"donbass-post git"
+"Prisma - how do you undo a schema change in production, and why is dropping a table special?"	"Migrations are forward-only (no auto 'down') - write a NEW migration that reverses it (like git revert).
+NEVER prisma migrate reset in prod (drops the whole DB).
+Dropping a table is irreversible for the DATA - rows are gone even if you re-add the table.
+So before a drop, the undo is a BACKUP (pg_dump), not a migration."	"donbass-post db-migrations prisma"
+"When does dropping a table CASCADE into data in a table you meant to keep?"	"When a table you KEEP has an onDelete: Cascade FK pointing AT the table you're dropping -
+deleting the parent cascades into the kept child. FKs pointing OUTWARD from the dropped table
+are harmless (they vanish with it). Safe design: log/snapshot tables store a plain denormalized
+value (e.g. managerChatId BigInt, NO @relation) so dropping the entity can't touch the log."	"donbass-post db-migrations prisma"
+"yarn db:migrate --name foo fails with 'unknown option --name'. Why, and the fix?"	"The script is ""prisma migrate dev && prisma generate"" - yarn appends --name to the TAIL command
+(prisma generate), which doesn't know it. migrate already succeeded; only the chained generate errors.
+Fix: split the scripts so --name reaches migrate alone -
+  ""db:migrate"": ""prisma migrate dev"",  ""db:generate"": ""prisma generate"""	"donbass-post prisma tooling"
+"Ops - container is Up, process alive, env injected, but logs stop after one line, no crash/stacktrace. What class of failure?"	"A HANG on an await to an unreachable external host - not a crash.
+A crash leaves a stack trace; silence after startup = a promise that never resolves
+(e.g. bot.init() calling a blocked API). Confirm reachability from inside the container before touching code."	"donbass-post devops debugging"
+"Resilience - an external call can hang forever with no log. How to make the failure diagnosable?"	"Race it against a timeout (withTimeout / Promise.race) so it rejects with a LOGGED error
+and exits non-zero (container restarts) instead of becoming a silent zombie.
+Mitigates the symptom; does NOT fix the underlying reachability."	"donbass-post devops resilience"
+"RBAC - the 'cannot remove yourself' rule: what's the environment-agnostic invariant that beats gating on NODE_ENV?"	"A count check: ""would this leave zero active admins?"" - environment-agnostic, runs everywhere,
+and expresses the REAL rule (don't lock everyone out).
+Gating ""is this self?"" on NODE_ENV === ""production"" means the rule never runs in dev,
+so it can break unseen. The self-check is a proxy; the count is the actual invariant."	"donbass-post rbac lockout"
+"RBAC - implement 'would this leave zero active admins?' as a count guard (shape)."	"Before revoking: count active assignments of the critical role
+(prisma.userRole.count where revokedAt: null, role.name = ADMIN/MANAGER, user.isActive: true).
+If removing this one would drop the count to 0, refuse. Same gate shape as the seed bootstrap."	"donbass-post rbac lockout"

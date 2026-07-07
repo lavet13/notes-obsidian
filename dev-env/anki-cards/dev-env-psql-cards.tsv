@@ -1,0 +1,26 @@
+#separator:Tab
+#html:false
+#notetype:Basic
+#deck:Dev
+#tags column:3
+"psql - list tables, and describe one table's structure (columns/indexes/FKs)?"	"\dt            list tables in the current schema
+\d tablename   describe a table (columns, types, indexes, foreign keys)
+\d+ tablename  same, more detail
+Backslash commands take NO semicolon; SQL statements DO."	"dev-env psql"
+"psql - open a shell inside a Compose postgres container?"	"docker compose exec postgres psql -U ""$POSTGRES_USER"" -d ""$POSTGRES_DB""
+# -U user, -d database. Prompt becomes  dbname=#"	"dev-env psql"
+"psql - core meta-commands: list DBs, switch DB, list schemas, quit, expanded rows?"	"\l         list databases
+\c db      connect to (switch) a database
+\dn        list schemas
+\x         toggle expanded display (key/value rows - good for wide tables)
+\q         quit
+\?         help for backslash commands"	"dev-env psql"
+"psql - the two rules that trip you up (semicolon, schema scope, case)?"	"Backslash commands (\dt) take NO semicolon; SQL (SELECT ...) NEEDS one.
+\dt shows only the CURRENT schema - use \dt *.* for all.
+Names case-fold to lowercase unless double-quoted: \d ""Users"" for a capitalized name."	"dev-env psql"
+"Postgres - restore tables from a pg_dump .sql backup into a running Compose container?"	"cat backup.sql | docker compose exec -T postgres psql -U ""$POSTGRES_USER"" -d ""$POSTGRES_DB""
+-T disables TTY allocation (required when piping stdin).
+The pg_dump .sql is plain SQL (CREATE TABLE + INSERTs), so psql just replays it.
+Verify with \dt afterward."	"dev-env postgres backup"
+"Postgres - dump just specific tables to a SQL file (backup before a drop)?"	"pg_dump -U ""$POSTGRES_USER"" -d ""$POSTGRES_DB"" -t table_a -t table_b > backup_$(date +%F).sql
+# -t = restrict to a table (repeatable). In Compose: docker compose exec -T postgres pg_dump ..."	"dev-env postgres backup"

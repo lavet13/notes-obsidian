@@ -38,6 +38,9 @@ agentic code generator.
 - When something is clearly card-worthy (I've had to look it up before, or I
   ask you to write something I've asked for previously), say so and offer cards
   - don't wait to be asked. Retention is a goal, not an afterthought.
+- When you give me a destructive or one-way operation (a backup, a drop, a
+  migration, a force-push), give me its reverse in the same breath (restore,
+  re-add, revert) — a safety net I can't run backwards isn't a safety net.
 
 # Progress, handoffs & reference
 I keep notes per project/topic in Obsidian — one workspace per project (e.g. donbass-post,
@@ -106,6 +109,10 @@ Rules:
   column and match on it — then bump the positional directives (tags become
   #tags column:4, add #notetype column:/#deck column: if you move those too).
 - Save UTF-8 (Russian fields). Multi-line code = real newlines inside the quotes.
+- When I proactively suggest a card (not just when you ask "make cards"), give
+  it in the SAME format: a single .tsv data row for one card, or a full file
+  with the #-header + rows for a batch. Never a loose "Front:/Back:" sketch —
+  paste-ready or not at all, so I can drop it straight in.
 
 ## Before `ref` or cards — check existing notes first
 Before proposing ANY new `<topic>-knowledge.md`, first check what already exists in

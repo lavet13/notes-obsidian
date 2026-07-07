@@ -39,3 +39,27 @@ prisma migrate dev --name revert_drop_manager_tables
 Key point: a migration that DROPS a table is irreversible for the DATA — the
 rows are gone even if you re-add the table. So before an irreversible migration
 (dropping a table), the "undo" is a BACKUP, not a migration. Back up, then drop.
+
+## Dropping a table: when it cascades into data you meant to keep
+
+A DROP cascades into a table you're KEEPING only when that kept table has an
+`onDelete: Cascade` foreign key pointing AT the table you're dropping. FKs
+pointing OUTWARD from the dropped table are harmless — they just vanish with it.
+
+Prisma drops FK constraints first (child before parent), which is why a clean
+teardown looks like:
+
+```sql
+ALTER TABLE "child" DROP CONSTRAINT "child_parent_id_fkey";
+DROP TABLE "child";
+DROP TABLE "parent";
+```
+
+Safe design for log / snapshot tables: store a plain denormalized value
+(e.g. `managerChatId BigInt`, NO `@relation`) instead of a real FK to the entity.
+Then dropping the entity can't touch the log — history survives. This is why
+NotificationLog (plain managerChatId column) was unaffected when Manager dropped.
+
+Verify before dropping: a migration that DROPS a non-empty table warns
+("about to drop X, which is not empty (N rows)"). That warning is expected when
+you've already backed up (pg_dump -t) — it's not an error, it's the safety notice.
