@@ -109,3 +109,46 @@ join tables via their composite unique key), and gate any one-time backfill /
 env-bootstrap behind an emptiness check so it does not re-assert or resurrect
 state on repeat runs. Call the COMPILED seed directly in the container
 (`node dist/prisma/seed.js`) - no tsx, no network installs at deploy time.
+
+## GitHub Actions path filters (`on.push.paths`)
+
+`paths:` is an allowlist — the workflow runs if AT LEAST ONE changed file matches a pattern.
+
+````yaml
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "apps/telegram-bot/**"      # include everything under the app…
+      - "!apps/telegram-bot/*.md"   # …EXCEPT top-level docs. The negation MUST come AFTER the
+                                    # positive glob it carves out of — last matching pattern wins.
+````
+
+Rules:
+- Can't mix `paths` and `paths-ignore` for one event. To include AND exclude, use `paths` + `!`.
+- Evaluated against the WHOLE changeset: a push touching a doc AND a source file still runs (the
+  source matches). Exclusion only skips pushes that are EXCLUSIVELY excluded files.
+- A push skipped by path filtering creates NO run at all (don't hunt for a "skipped" entry).
+- `workflow_dispatch` ignores paths — always manually runnable.
+
+GHA filter glob is its OWN dialect (not shell glob, not full regex):
+- `*` = zero+ chars but NOT `/`;  `**` = zero+ chars INCLUDING `/` (recursive).
+- `?` = zero-or-one of the PRECEDING char (regex-style quantifier!), `+` = one-or-more.
+  → `*.jsx?` matches BOTH `page.js` and `page.jsx` (trailing x optional). NOT shell "any char".
+- Patterns are ANCHORED to the whole path from repo root (why negations spell the full path).
+- No brace expansion — list `**/*.ts` and `**/*.tsx` separately.
+- `*`, `[`, `!` are special in YAML → quote patterns starting with them.
+
+# No brace expansion. The shell turns {ts,tsx} into "ts tsx"; GHA does NOT — it reads the braces
+# LITERALLY (a file named "…{ts,tsx}"), so the pattern matches nothing. List each on its own line:
+paths:
+  - "**/*.ts"
+  - "**/*.tsx"       # NOT "**/*.{ts,tsx}" — that never matches anything
+
+# YAML quoting. A value that STARTS with a syntax token is parsed as that token, not as text:
+#   *  = alias    &  = anchor    !  = tag    [ or { = flow collection    (? : - in places too)
+# So an unquoted pattern starting with one is a parse error or mis-parse. Quote it → literal string:
+paths:
+  - "!apps/telegram-bot/*.md"   # unquoted !… → YAML reads a tag → error
+  - "*.md"                      # unquoted *…  → YAML reads an alias → error
+  - "[a-z]*.ts"                 # unquoted [   → YAML reads a flow sequence → wrong

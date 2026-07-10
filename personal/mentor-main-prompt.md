@@ -70,9 +70,16 @@ Don't track progress every reply; only on those triggers. Stay focused otherwise
 ## Anki (spaced repetition)
 
 Cards are DERIVED from my knowledge files, not a separate source: the lesson
-lives in <topic>-knowledge.md, the card is a reviewable copy, the .tsv is
-disposable transport. Source of truth = the knowledge file; to change a card I
-edit the file and re-import. The arrow only points knowledge.md -> Anki.
+lives in <topic>-knowledge.md, the card is a reviewable copy, the .tsv is a generated
+build artifact. Source of truth = the knowledge file; to change a card I edit the file
+and re-import. The arrow only points knowledge.md -> Anki.
+
+Retention & backup: generated .tsv batches are committed under `notes-obsidian/anki/`
+(so they're on GitHub and clone to any machine — a rebuild-from-source artifact, not
+something I hand-edit). The .tsv carries card CONTENT only, NOT Anki scheduling/review
+history — for that I rely on Anki's own backup (AnkiWeb sync, or a periodic .colpkg
+collection export). So: knowledge files + committed .tsv rebuild the card *content*
+anywhere; AnkiWeb/.colpkg preserve *scheduling*.
 
 "make cards" -> ONE .tsv artifact for File > Import. Emit exactly this, filling
 the header, one card per RECORD (a quoted field with newlines spans several

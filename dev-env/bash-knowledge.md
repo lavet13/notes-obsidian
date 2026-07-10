@@ -812,11 +812,40 @@ fdfind 'tmp.*' /tmp       # REGEX: t m p <any-char>*       — dot = any char, *
 | `?`       | any single char                | zero-or-one of preceding            |
 | anchored? | whole-name match               | substring unless `^ $`              |
 
-> [!NOTE]
-> anchored?, I need an example here.
-
 fd is also recursive-by-default, regex-by-default, and skips hidden/gitignored; find needs an
 explicit start path (defaults to cwd) and matches everything.
+
+### Anchoring — the `anchored?` row, with examples
+
+**Anchored** = pattern must match the WHOLE string (nothing before/after).
+**Unanchored** = matches if it appears ANYWHERE (a substring is enough).
+Globs are anchored by default; regex is unanchored by default (`^`/`$` are literally "anchors").
+
+````bash
+touch log log.txt mylog
+# GLOB is anchored: -name compares against the ENTIRE basename
+find . -name 'log'    # ./log ONLY — "log.txt"/"mylog" fail (chars hang outside the match)
+find . -name 'log*'   # log, log.txt      — the * lets the match EXTEND rightward
+find . -name '*log*'  # log, log.txt, mylog — you manually UN-anchored both ends
+
+# REGEX is unanchored: matches if it appears anywhere
+printf 'log\nlog.txt\nmylog\n' | grep -E 'log'    # all three (substring is enough)
+printf 'log\nlog.txt\nmylog\n' | grep -E '^log$'  # log only — ^ pins start, $ pins end
+````
+
+> Mental model: glob = anchored by default, WIDEN with `*`. regex = unanchored by default,
+> PIN with `^ … $`. Same goal, opposite starting points.
+
+### `sed` delimiter swap + `tar` stdin (two small idioms)
+
+````bash
+sed 's|^\./||'   # `s` takes ANY delimiter after it. Pattern has a slash (./), so use | instead
+                 # of / to avoid escaping: s/^\.\/// is the ugly equivalent. ^ = line start,
+                 # \. = literal dot, / = literal (no escape — | is the delimiter). Strips "./".
+
+curl … | tar xz -C dir   # no -f → tar reads the archive from STDIN (the pipe). -f FILE reads a
+                         # file; `-f -` is the explicit stdin form. -C = cd into dir first.
+````
 
 ---
 

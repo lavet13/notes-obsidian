@@ -1,0 +1,52 @@
+#separator:Tab
+#html:false
+#notetype:Basic
+#deck:Dev
+#tags column:3
+"Glob vs regex: which is anchored by default?"	"GLOB = anchored: must match the WHOLE name; WIDEN with *.
+REGEX = unanchored: matches a substring; PIN with ^ and $.
+Same goal, opposite defaults.
+
+  find . -name 'log'   -> ""log"" only  (log.txt / mylog fail)
+  grep -E 'log'        -> any line containing ""log""
+  grep -E '^log$'      -> ""log"" only"	"dev-env regex glob"
+"BRE vs ERE: who needs the backslash?"	"BRE (grep, sed default): the powerful metachars ? + { } ( ) | are LITERAL
+  -> escape them to ACTIVATE:  \?  \+  \{ \}  \( \)  \|
+ERE (grep -E, sed -E, bash [[ =~ ]]): they are special BY DEFAULT
+  -> escape them to make LITERAL.
+Opposite worlds. (\1 backreferences exist in BRE; not in POSIX ERE.)"	"dev-env regex bre ere"
+"GitHub Actions: how do you exclude a file from a paths: trigger?"	"Add a !-prefixed negation AFTER the positive glob (last matching pattern wins).
+You CANNOT mix `paths` and `paths-ignore` for one event.
+
+  paths:
+    - ""apps/bot/**""
+    - ""!apps/bot/*.md""   # order matters: negation must follow the include"	"donbass-post github-actions ci"
+"GitHub Actions path filter: push touches an excluded doc AND a source file — run or skip?"	"RUNS. Filters evaluate the WHOLE changeset: if ANY changed file matches an
+include (and isn't excluded), the workflow runs. The exclusion only skips
+pushes that are EXCLUSIVELY excluded files. (A skipped push creates NO run.)"	"donbass-post github-actions ci"
+"GitHub Actions glob: what do ? and + mean (vs shell glob)?"	"Regex-style QUANTIFIERS on the preceding char, NOT shell wildcards:
+  ? = zero-or-one of preceding,  + = one-or-more of preceding.
+  e.g. *.jsx?  matches BOTH page.js AND page.jsx (trailing x optional).
+Also: * doesn't cross /, ** does; patterns anchored to whole path from repo root.
+No brace expansion: list **/*.ts and **/*.tsx separately (never **/*.{ts,tsx})."	"donbass-post github-actions glob"
+"JS/TS regex: \1 in the pattern vs $1 in the replacement?"	"PATTERN: \1 = backreference — matches the SAME TEXT group 1 captured.
+  /(\w)\1/ matches ""ll"" (a doubled char), NOT any two chars.
+  Named: \k<name>.
+REPLACEMENT string (.replace): use $1 (and $<name>) to INSERT the capture.
+  \1 in a replacement is a literal, not a backref."	"donbass-post typescript regex"
+"JS/TS regex: what does a lookahead (?=...) / (?!...) do?"	"Zero-width ASSERTION: checks what FOLLOWS without consuming it (not part of match).
+  /foo(?=bar)/ matches ""foo"" only if ""bar"" follows, but the match is just ""foo"".
+  (?!...) = negative. Lookbehind (?<=...)/(?<!...) is the backward version (ES2018).
+Stack them for independent AND conditions at the same spot:
+  /(?=.*\d)(?=.*[a-z]).{8,}/  -> each (?=) peeks from the current position and rewinds."	"donbass-post typescript regex"
+"JS/TS regex: what causes catastrophic backtracking (ReDoS)?"	"A quantifier NESTED inside another over the same class: (a+)+, (a*)*, (a|a)+.
+On input that ALMOST matches (e.g. a trailing char that fails a final $), the engine
+tries exponentially many ways to split the run before failing -> hang.
+Fix: flatten to a+ / a*, or anchor to remove the ambiguity."	"donbass-post typescript regex redos"
+"YAML: when must you quote a value (e.g. a GHA path pattern)?"	"When it STARTS with a syntax token, YAML reads it as that token, not text:
+  *  = alias    &  = anchor    !  = tag    [ or { = flow collection   (? : - in places)
+Unquoted -> parse error / mis-parse. Quote it -> literal string.
+
+  - ""!apps/**""     # ! -> tag without quotes
+  - ""*.md""         # * -> alias without quotes
+  - ""[a-z]*.ts""    # [ -> flow sequence without quotes"	"donbass-post yaml github-actions"
