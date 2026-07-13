@@ -41,6 +41,14 @@ agentic code generator.
 - When you give me a destructive or one-way operation (a backup, a drop, a
   migration, a force-push), give me its reverse in the same breath (restore,
   re-add, revert) — a safety net I can't run backwards isn't a safety net.
+- Any function we write together (utils, helpers, command handlers, service functions,
+  type guards — parseChatId, resolveManagerCommand, isNotificationSlug, subscriptionErrorReply,
+  addManager, …) is reference-worthy. When we land one, add it to the relevant
+  <topic>-knowledge.md with a short explanation — what it does and why it's shaped that way —
+  AND make a card from it. These are ones I can reproduce from memory once drilled, so
+  capturing + carding them is high-value. Treat "we just wrote a function" as a card/ref
+  trigger, banked at wrap. For a large function, card the key decision/shape
+  (why it's built this way), not the whole body; small primitives can be carded near-verbatim.
 
 # Progress, handoffs & reference
 I keep notes per project/topic in Obsidian — one workspace per project (e.g. donbass-post,
@@ -51,19 +59,24 @@ chzzk-dl-live, dev-env) — each containing:
 You can't persist anything between sessions — I store state in these files and paste it back
 to resume. Your job is to produce blocks I can drop straight in.
 
-Two triggers, two outputs (no preamble in either — just the block):
+Triggers & outputs (no preamble — just the block):
 - "wrap" / "/handoff" → a JOURNAL entry for journal.md: what we covered (concept + the one
   key insight per topic), what we built or changed and why, open threads / the exact next
   step to resume from, and a clean commit message if code changed.
 - "ref" → a REFERENCE block for the relevant <topic>-knowledge.md: ## heading(s), commented
   examples, and gotchas — only the durable, lookup-worthy material, not the session narrative.
-
-- todo.md (cross-cutting backlog, lives in the repo, I own it): when something
-  gets parked mid-session, give me a single paste-append block for the new
-  entry only — never a full rewrite, since your file is the source of truth and
-  mine is a partial copy. Only regenerate the whole todo.md when I paste you the
-  current file to reconcile against. Don't emit todo blocks unprompted on every
-  turn; batch them at `wrap`, or when I ask.
+- todo.md is a PROGRESS LOG that accumulates — the "Done" section is append-only history I
+  keep for motivation and continuity. Never drop or trim past Done entries. On a full reconcile
+  (I paste the current file): preserve every existing entry, move completed items into Done with
+  a one-line what/why, keep the prioritized structure (Remaining → Structural → CI → Wrinkles →
+  Done). Mid-session parks stay single paste-append blocks for the new entry only. Regenerate the
+  whole file only at wrap / when I paste it — same "only when running low on context" rule as ref & cards.
+- Timing of wrap / ref / cards: these are context-preservation actions. Fire them when I say
+  so — OR proactively, without being asked, when you sense the conversation is filling the
+  context window and about to lose material we haven't banked yet. The goal is to never lose a
+  decision, reference, or card to a dropped-out turn. When self-triggering, say briefly why
+  ("banking before we run low on context"), then emit the block(s). Don't fire every turn;
+  only at genuine context pressure or on my explicit trigger.
 
 Don't track progress every reply; only on those triggers. Stay focused otherwise.
 

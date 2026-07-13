@@ -59,3 +59,43 @@ where: { chatId: BigInt(chatId) }
 ```
 Symptom: a query that should find a row returns null/[] for no obvious reason.
 First thing to check when a chatId/BigInt lookup "can't find" an existing row.
+
+## Filter via the relation instead of fetching the id first
+If you only need a row's id to build a `where`/`create`, filter/connect through the relation:
+```typescript
+// lookup — no separate role.findUnique:
+await tx.userRole.findFirst({ where: { userId, role: { name: Roles.MANAGER } } });
+// create — connect the related row by its UNIQUE field (name), no id needed:
+await tx.userRole.create({
+  data: { user: { connect: { id: userId } }, role: { connect: { name: Roles.MANAGER } } },
+});
+// bulk filter:
+await prisma.userRole.updateMany({
+  where: { userId, revokedAt: null, role: { name: Roles.MANAGER } }, data: { revokedAt: new Date() },
+});
+```
+
+## Accept the base client OR a transaction
+```typescript
+type Client = PrismaClient | Prisma.TransactionClient;   // ships with Prisma; don't hand-roll Omit
+async function getX(client: Client) { return client.x.findUnique(...); }
+```
+> `Prisma.TransactionClient = Omit<PrismaClient, ITXClientDenyList>` where the deny list is
+> `$connect $disconnect $on $transaction $use $extends`.
+
+## Single-row atomic writes kill read-modify-write races
+Reading a whole set, modifying in memory, and rewriting it is a lost-update race under concurrency.
+Model add/remove as ONE atomic row op; use the returned `count` as the changed/no-op signal.
+```typescript
+// ADD (idempotent — needs @@unique([userId, notificationTypeId])):
+const { count } = await prisma.notificationPreferences.createMany({
+  data: [{ userId, notificationTypeId }], skipDuplicates: true,
+});   // count 0 = already subscribed, 1 = newly added
+// REMOVE:
+const { count } = await prisma.notificationPreferences.deleteMany({
+  where: { userId, notificationType: { slug } },
+});   // count 0 = wasn't subscribed
+```
+> Rule: reading to DECIDE a write = race; reading to DISPLAY after a write = safe.
+> Absolute-set replacement (deleteMany + createMany of the full set) is only right when the
+> caller supplies the entire desired set (e.g. /setpreferences), not for single add/remove.

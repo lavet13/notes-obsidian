@@ -1,0 +1,29 @@
+#separator:Tab
+#html:false
+#notetype:Basic
+#deck:Dev
+#tags column:3
+"YAML: what are the three node kinds?"	"Everything is one of three, nested arbitrarily:
+  scalar   - a single value (string/number/bool/null)
+  sequence - an ordered list
+  mapping  - key -> value pairs"	"dev-env yaml"
+"YAML: block vs flow style?"	"Two spellings of the same data:
+  BLOCK - indentation + dashes (multi-line; what Compose/Actions use)
+  FLOW  - inline, JSON-like:  [] = sequence,  {} = mapping
+Any JSON is valid flow-style YAML (YAML 1.2 is a superset of JSON)."	"dev-env yaml json"
+"YAML: anchor (&) vs alias (*) vs merge key (<<)?"	"&name  = ANCHOR: label a node
+*name  = ALIAS: reuse that labeled node
+<<: *name = MERGE the aliased mapping's keys into this one
+YAML's built-in DRY (common in docker-compose).
+=> a value STARTING with * is an alias -> must be quoted if literal."	"dev-env yaml anchors"
+"YAML: what does a tag (!) do?"	"An explicit TYPE override of YAML's implicit typing.
+  !!str 8080  forces a string;  !!int / !!bool likewise.
+Tools define custom tags (CloudFormation !Ref, !GetAtt).
+=> a value STARTING with ! is a tag -> must be quoted if literal."	"dev-env yaml tags"
+"YAML: the ""Norway problem"" / implicit typing gotcha?"	"Unquoted scalars are auto-typed, sometimes surprisingly:
+  NO   -> boolean false (Norway!)     yes/on/y/n -> true/false (YAML 1.1)
+  1.10 -> float 1.1 (trailing 0 lost) 01234 -> leading zero may drop
+Fix: QUOTE anything you mean as a literal string (""NO"", ""1.10"")."	"dev-env yaml gotcha"
+"YAML: when must you quote a value?"	"When it STARTS with a syntax token, or to defuse implicit typing:
+  *  alias    &  anchor    !  tag    [ or {  flow collection    ? : -  (in places)
+Unquoted -> parse error / mis-type. Quote -> literal string."	"dev-env yaml quoting"

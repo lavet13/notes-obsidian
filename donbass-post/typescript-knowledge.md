@@ -105,3 +105,41 @@ It's decided in one pass at the start.
 // Rule: never nest a quantifier inside another over the same class — (a+)+, (a*)*, (a|a)+.
 //       Flatten to a+ / a*, or anchor to remove the ambiguity.
 ```
+
+## Discriminated-union "Result" for parse-or-fail
+Return a value OR an error as data — don't throw, don't do I/O (reply/log) inside the parser.
+Keeps it pure-ish and unit-testable; the caller decides what to do with the error.
+```typescript
+type Parsed =
+  | { ok: true; chatId: number; rest: string[] }
+  | { ok: false; error: string };        // ready-to-send message, caller owns the reply
+
+const parsed = parseCommandArgs(text, USAGE);
+if (!parsed.ok) { await ctx.reply(parsed.error); return; } // .ok narrows the union
+const { chatId, rest } = parsed;          // here TS knows the ok:true shape
+```
+> zod's `safeParse` returns this exact shape: `{ success: true, data } | { success: false, error }`.
+
+## Type guard (`x is T`) vs assertion (`as T`)
+A guard VERIFIES at runtime then narrows; `as` just tells the compiler to trust you (can lie).
+```typescript
+export function isNotificationSlug(s: string): s is NotificationType {
+  return (VALID_SLUGS as readonly string[]).includes(s);   // real check
+}
+const [slug] = rest;                       // string | undefined
+if (!slug || !isNotificationSlug(slug)) return;            // slug is NotificationType past here
+const valid = rest.filter(isNotificationSlug);             // filter+guard: string[] -> NotificationType[]
+```
+> `rest as [NotificationType]` would compile but is false safety — runtime `rest` is still `string[]`.
+
+## parseChatId — strict integer parse
+```typescript
+export function parseChatId(raw: string): number | null {
+  const n = Number(raw);                   // strict: '123abc' -> NaN
+  return Number.isInteger(n) ? n : null;   // rejects NaN AND floats ('12.9' -> null)
+}
+// parseInt is LENIENT: parseInt('123abc') -> 123, parseInt('12.9') -> 12. Wrong for a whole-token id.
+// zod: const ChatId = z.coerce.number().int();  ChatId.safeParse(raw)
+```
+> Layering: keep `parseChatId` pure so commands that DON'T need auth (/addmanager) reuse it;
+> `resolveManagerCommand` composes the manager-membership check on top.

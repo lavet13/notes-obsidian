@@ -7,6 +7,42 @@ tags: []
 
 # Journal
 
+## 2026-07-11 — Preference commands: relation-filter refactor, arg-parser extraction, concurrency fix
+
+Resumed post-RBAC-migration cleanup. Started at "extract getManagerRole"; ended having *deleted* it — the session's throughline was **the best refactor often removes the need, not the duplication**.
+
+**getManagerRole — extract vs delete.** Counted the actual code, not the plan: the `role.findUnique({name})` was 2× not 3× (removeManager already filtered via the relation). That was the tell that the lookup itself was avoidable. Decided `role_not_found` was dead defensive code (role is seeded), dropped the distinction, went relation-filter everywhere. → `getManagerRole` deleted with zero callers.
+  - `addManager` reworked: `findFirst({ where:{ userId, role:{name} } })` for the lookup, `role:{connect:{name}}` on create, reactivation `update` via the fetched row's own `roleId` (UserRole has a compound `@@id`, no scalar id). `manager_role_not_found` token gone.
+
+**Arg-parsing extraction → `commands/args.ts`.** `parseChatId` (pure; `Number.isInteger(Number(x))` — strict, unlike `parseInt`), `parseCommandArgs`, `resolveManagerCommand` (parse + authorize). Key insight: **return a discriminated-union Result, don't reply inside** — keeps I/O out and stays testable. Slug validation does NOT belong in the generic parser (it's domain knowledge, varies per command) — moved to the command layer as a `isNotificationSlug` **type guard** (`s is T` verifies-then-narrows; `as` only asserts and can lie). Fixed the `/setpreferences 123` clear-all bug for free (parser no longer demands a slug).
+
+**Token → UI.** `subscriptionErrorReply` = exhaustive `switch` + `assertNever` (compile error when the union grows), extracted because the error arms were identical across append/remove/set.
+
+**Concurrency.** `/appendpreference` + `/removepreference` did a read-modify-write across 3 calls → lost-update race. Fixed by shape: single-row atomic ops — `createMany({skipDuplicates})` / `deleteMany` — with the returned `count` as the changed/no-op signal. Kept `setManagerSubscriptions` for `/setpreferences` (absolute set). Insight banked: **read-to-decide = race, read-to-display = safe** (so the post-mutation "current subscriptions" re-fetch is fine).
+
+**Also:** deploy now skips docs-only pushes (`!apps/telegram-bot/*.md` in the paths filter); version bumped minor. Side quests captured to knowledge files: GHA/glob/regex/BRE-ERE/anchoring, YAML (new `dev-env/yaml-knowledge.md`), Anki backup model (tsv = content, AnkiWeb/.colpkg = scheduling).
+
+**Open / resume:** Ivan is about to paste his completed append/remove/set + `args.ts` for review (he reports backticks fixed, dead `findUnique` dropped in remove, guard collapse done). Next after review: `NODE_ENV` gate → count invariant; then zod for `/api/notify/*`.
+
+**Commit (suggest 2–3 logical splits):**
+```
+refactor(tg-bot): relation-filter manager lookups, drop getManagerRole
+
+Filter the MANAGER role via the relation everywhere (findFirst/connect-by-name);
+addManager reactivates via the fetched row's roleId. Removes the standalone role
+lookup and the manager_role_not_found / role_not_found branches (role is seeded).
+
+feat(tg-bot): atomic preference add/remove, shared command arg parser
+
+/append+/removepreference now do single-row createMany{skipDuplicates}/deleteMany
+with count as the signal, killing the read-modify-write race. Extract
+commands/args.ts (parseChatId, parseCommandArgs, resolveManagerCommand) +
+isNotificationSlug guard; slug validation moved to the command layer.
+Fixes /setpreferences <chatId> clear-all.
+
+ci(tg-bot): skip deploy on docs-only changes (!apps/telegram-bot/*.md)
+```
+
 ## 2026-06-25 — RBAC: soft-delete revocation + notification backfill
 
 ### Covered

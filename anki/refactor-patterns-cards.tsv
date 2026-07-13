@@ -1,0 +1,37 @@
+#separator:Tab
+#html:false
+#notetype:Basic
+#deck:Dev
+#tags column:3
+"TS: return 'parsed value OR error' without throwing?"	"A discriminated-union Result:
+  type R = { ok: true; value: X } | { ok: false; error: string };
+Caller checks .ok (narrows the union), acts. Return DATA, don't reply/throw inside
+-> no hidden I/O on the error path, stays unit-testable."	"donbass-post typescript result-type"
+"TS: type guard (x is T) vs assertion (as T)?"	"GUARD: a function returning `s is T` that VERIFIES at runtime, then narrows.
+  function isSlug(s: string): s is Slug { return LIST.includes(s); }
+AS: just asserts to the compiler — no check, can lie (rest as [Slug] when rest is string[]).
+Use the guard. `arr.filter(isSlug)` narrows string[] -> Slug[] honestly."	"donbass-post typescript type-guard"
+"TS: strict integer parse from a string (reject '123abc', '12.9')?"	"Number.isInteger(Number(raw))  -- Number() is strict: '123abc'->NaN.
+parseInt() is LENIENT: parseInt('123abc')->123, parseInt('12.9')->12 (truncates).
+zod equivalent: z.coerce.number().int()  (coerce = Number(raw); .int() rejects NaN/floats)."	"donbass-post typescript parsing"
+"Refactor: why extract parseChatId separately from resolveManagerCommand?"	"Layering: parseChatId is PURE and reusable by commands that DON'T want auth
+(/addmanager parses a chatId but can't require an existing manager).
+resolveManagerCommand composes the manager-membership check ON TOP.
+Extract the smallest reusable floor; build domain logic above it."	"donbass-post typescript refactoring"
+"Prisma: avoid fetching a row's id just to use it in a where/create?"	"Filter/connect via the RELATION instead:
+  find:    where: { userId, role: { name: MANAGER } }        // findFirst, no role.id fetch
+  create:  data:  { role: { connect: { name: MANAGER } } }   // connect by unique name
+  filter:  where: { revokedAt: null, role: { name: MANAGER } }
+Skips the separate lookup entirely."	"donbass-post prisma relation-filter"
+"Prisma: type a param that accepts the base client OR a transaction (tx)?"	"type Client = PrismaClient | Prisma.TransactionClient;
+Prisma ships TransactionClient = Omit<PrismaClient, ITXClientDenyList>
+(deny list: $connect $disconnect $on $transaction $use $extends).
+Don't hand-roll the Omit — it drifts from Prisma's list across versions."	"donbass-post prisma transactions"
+"Prisma: fix a read-modify-write lost-update race on a set of rows?"	"Don't read-the-whole-set -> modify -> rewrite-the-whole-set (two concurrent runs clobber).
+Do ONE atomic single-row op and use the returned count as the 'did it change' signal:
+  add:    createMany({ data:[row], skipDuplicates:true })  // count 0 = already there
+  remove: deleteMany({ where:{...} })                       // count 0 = wasn't there
+Needs @@unique on the row. Absolute-set replace (setX) is only for 'user gave the full set'."	"donbass-post prisma concurrency"
+"When is reading-then-writing a race vs safe?"	"Reading to DECIDE a write  = race: concurrent readers compute from stale state -> lost update.
+Reading to DISPLAY after a write = safe: you're not mutating based on it.
+So: re-fetch the list to SHOW it post-mutation is fine; re-fetch to COMPUTE the next write is the bug."	"donbass-post concurrency"
