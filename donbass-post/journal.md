@@ -7,6 +7,16 @@ tags: []
 
 # Journal
 
+## 2026-07-11 (cont.) — post-review: userId threading, dead-code sweep, 429 gate
+
+Reviewed the completed refactor. `resolveManagerCommand` now returns `userId` (rule-of-three cleared it — getAllManagers already needed the user row), so append/remove dropped their redundant per-command manager `findUnique`. `getAllManagers` → `{chatId, userId}[]`, threaded through `commands/index.ts`.
+
+- **Dead code after extract-and-replace:** the atomic `count` refactor orphaned `isManagerSubscribed` (its only callers were append/remove). Deleted. Key insight: `yarn check-types` stays green on dead *exports* — TS treats exported symbols as used-externally, so `noUnusedLocals` never flags them. Catch with grep or knip/ts-prune.
+- **429 on boot:** `registerCommands` re-pushes all `setMyCommands` scopes every boot; tsx restarts on every save → cumulative rate-limit exhaustion (retry_after 841). Gated registration behind `NODE_ENV`/`REGISTER_COMMANDS` (fixed the `.default(true)`→`.default(false)` bug that made the gate a no-op). tsx watch = full process restart, NOT HMR — every startup side-effect re-runs.
+- **config.managers is redundant + buggy:** `/status` counts managers from the env bootstrap list, not the DB. Cleanup = migrate `status.ts`/`server.ts` to `getAllManagers()`, drop `AppConfig.managers`, keep `MANAGER_CHAT_IDS` for seed only.
+
+**Resume:** apply the managers-field cleanup + `REGISTER_COMMANDS` default fix; then `NODE_ENV` count-invariant gate, then zod for `/api/notify/*`.
+
 ## 2026-07-11 — Preference commands: relation-filter refactor, arg-parser extraction, concurrency fix
 
 Resumed post-RBAC-migration cleanup. Started at "extract getManagerRole"; ended having *deleted* it — the session's throughline was **the best refactor often removes the need, not the duplication**.

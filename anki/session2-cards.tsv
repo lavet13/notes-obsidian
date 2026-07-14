@@ -1,0 +1,18 @@
+#separator:Tab
+#html:false
+#notetype:Basic
+#deck:Dev
+#tags column:3
+"Zod: strict integer parse of a whole-token string (reject '123abc', '12.9')?"	"z.coerce.number().int()  then .safeParse(raw).
+  coerce = Number(raw)  ('123abc' -> NaN);  .int() rejects NaN AND floats ('12.9' fail).
+Beats parseInt, which truncates: parseInt('123abc')=123, parseInt('12.9')=12.
+  const ChatId = z.coerce.number().int();
+  ChatId.safeParse(raw).success ? .data : null"	"donbass-post zod parsing"
+"tsx watch (and nodemon / node --watch): reload or HMR?"	"Full PROCESS RESTART on every file change — NOT hot module replacement.
+Kills Node, relaunches fresh -> every startup side-effect re-runs (DB pool, bot init,
+command registration). Browser HMR swaps modules in-place and keeps state; backend
+tooling restarts because hot-swapping live sockets mid-flight is fragile."	"dev-env tsx tooling"
+"Does a green `tsc` / check-types mean no dead code?"	"No. TypeScript flags unused LOCALS (noUnusedLocals) but never unused EXPORTS —
+an exported symbol is assumed used by some other module. So an orphaned exported
+function (e.g. after an extract-and-replace refactor) type-checks clean.
+Catch dead exports with grep, or knip / ts-prune / eslint no-unused-exports."	"donbass-post typescript dead-code"

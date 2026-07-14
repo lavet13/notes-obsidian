@@ -114,3 +114,16 @@ export const env = parsed.data;
 `safeParse` returns `{ success, data | error }` instead of throwing — lets you
 print a clear message and `process.exit(1)` rather than surfacing a raw stack
 trace. Fail at the boundary, once, so nothing downstream has to re-check.
+
+## Strict scalar parse: `z.coerce.number().int()`
+For a whole-token numeric input (an id from a command string) you want STRICT parsing —
+reject trailing junk and floats, not truncate them like `parseInt`.
+```typescript
+const ChatId = z.coerce.number().int();   // coerce = Number(raw); .int() rejects NaN AND floats
+export function parseChatId(raw: string): number | null {
+  const r = ChatId.safeParse(raw);        // { success:true, data } | { success:false, error }
+  return r.success ? r.data : null;
+}
+// '123abc' -> Number -> NaN -> fail;  '12.9' -> 12.9 -> .int() fail;  '-100' -> ok.
+// vs parseInt('123abc')=123, parseInt('12.9')=12 (lenient truncation — wrong for a full id).
+```
