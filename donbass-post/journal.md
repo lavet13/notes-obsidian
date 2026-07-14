@@ -7,6 +7,22 @@ tags: []
 
 # Journal
 
+## 2026-07-11 (cont.) — reactive command registration (#3), 429 resolved
+
+**#3 shipped:** deleted the per-manager boot loop; a manager's command scope is now set in the `/addmanager` handler (all three non-error outcomes — `already_manager` too, since the menu may have been cleared) and torn down in `/removemanager` on `revoked`. Boot only sets the static scopes now (public, all_private_chats, admin). Closes the parked menu-source-mismatch note (menus now flow from the same DB write-path).
+- `setCommandsForChat` param widened `bot: Bot` → `api: Api` (it only ever used `bot.api`) — accept the narrowest dependency. Handlers pass `ctx.api`.
+- Added symmetric `clearCommandsForChat`. **Key Telegram insight:** each `{scope, language_code}` pair is an independent list; `setCommandsForChat` writes 4 (LOCALES), so removal must `deleteMyCommands` per-language or the localized menus survive. Scope precedence: chat → all_private_chats → default, so deleting the chat scope falls back to public.
+
+**#1 reverted:** the `REGISTER_COMMANDS` dev-gate was NOT kept — #3 removed the real amplifier, and gating dev hid useful signal (you want to see command registration while developing). Supersedes the earlier "Gated command registration" Done entry. (Check `REGISTER_COMMANDS` isn't left dead in env.ts.)
+
+**#2 (hash-gated boot) — considered, YAGNI.** After #1+#3, the residual is ~a dozen fixed calls, prod-only, on rare restarts, under the limit. A persisted checksum trades cheap self-correcting re-pushes for a cache that can lie (DB hash desyncs from Telegram's real state → menu silently not restored). Not worth it at this scale.
+
+**Guard lesson:** `if (!chatId)` was wrong — `parseChatId` signals failure only with `null`, but `!` also fires on `0`. Match the guard to the sentinel: `if (chatId === null)`.
+
+**Handler vs service:** handler = the edge (has `ctx`/`api`, talks to Telegram); service = the core (Prisma only, no `ctx`). Telegram concerns (setting scopes) live in handlers; that's why `setCommandsForChat` isn't in `addManager`.
+
+**Resume:** pick next — `/api/notify/*` zod boundary validation (parse-don't-validate, meatier), or the `NODE_ENV` self-removal gate → "would this leave zero active managers?" count invariant (quick win).
+
 ## 2026-07-11 (cont.) — post-review: userId threading, dead-code sweep, 429 gate
 
 Reviewed the completed refactor. `resolveManagerCommand` now returns `userId` (rule-of-three cleared it — getAllManagers already needed the user row), so append/remove dropped their redundant per-command manager `findUnique`. `getAllManagers` → `{chatId, userId}[]`, threaded through `commands/index.ts`.

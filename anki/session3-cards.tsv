@@ -1,0 +1,22 @@
+#separator:Tab
+#html:false
+#notetype:Basic
+#deck:Dev
+#tags column:3
+"Telegram setMyCommands: what's the unit of a command list, and how does it update?"	"Unit = a {scope, language_code} PAIR — each is independent, own 100-cmd limit.
+setMyCommands OVERWRITES that pair's whole list (no partial update; [] clears it).
+So one 'chat scope in 4 languages' = 4 independent setMyCommands calls."	"donbass-post grammy telegram-commands"
+"Telegram: you set a chat menu in 4 languages — how do you fully remove it?"	"deleteMyCommands ALSO targets one {scope, language_code} pair. A single delete
+(no language_code) clears only the default entry — the ru/uk/en lists survive.
+Removal must MIRROR the set: loop the same LOCALES and deleteMyCommands per language."	"donbass-post grammy telegram-commands"
+"Telegram command scope precedence (private chat)?"	"Most-specific first: chat -> all_private_chats -> default
+(within each, language-specific before language-agnostic).
+=> deleting a chat-scoped list makes the chat FALL BACK to all_private_chats.
+So clearing a manager's chat scope reverts them to the public menu automatically."	"donbass-post grammy telegram-commands"
+"Guard smell: when is `if (!x)` wrong for a `T | null` return?"	"When x can legitimately be a falsy value (0, """", false). !x fires on ALL of them,
+not just null. Match the guard to the function's actual sentinel:
+  parseChatId returns number | null  ->  if (x === null), NOT if (!x)  (0 is a valid id)."	"donbass-post typescript guards"
+"Where does Telegram/edge work go: handler or service?"	"Handler = the EDGE: has ctx / ctx.api / ctx.reply, talks to Telegram & the outside world.
+Service = the CORE: Prisma-only data logic, no ctx, doesn't know Telegram exists; returns a token.
+=> setting a command scope (a Telegram concern) lives in the HANDLER, never the service.
+Waiter (handler) carries orders; kitchen (service) just cooks."	"donbass-post architecture boundaries"
