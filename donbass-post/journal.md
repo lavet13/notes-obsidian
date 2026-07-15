@@ -7,6 +7,20 @@ tags: []
 
 # Journal
 
+## 2026-07-12 — /api/notify zod migration: the pick-up-point-delivery schema
+
+Started the parse-don't-validate migration. `ali-parcel-pickup` was already zod (`parseBody` + schema) — it's the template; the other two endpoints hand-roll checks.
+
+**The big catch — the server was validating a payload that doesn't exist.** Its manual checks assumed `sender` with optional company fields inside (inclusive-OR: `if (!hasPhysical && !hasCompany)` errors only on *neither*, so both was legal). Read the frontend: `transformFormDataToPayload` branches on a `type` radio and emits **different keys** — `{sender} | {companySender}`, exclusive, differently shaped. Confirmed by `PickUpPointDeliveryOrderVariables` (optional sibling keys). So it IS real XOR, and the old code modelled a fiction. **Rule: model the payload the producer actually sends, verified by reading the client.**
+
+**Design chosen:** one flat `z.object` with optional sibling keys + three `.refine()`s, NOT `z.union`/intersections. Why: intersections return `ZodIntersection` (loses `.pick`/`.omit`/`.extend` per zod docs), stack union errors, and can't express "customer optional" (`.optional()` on a union applies to the *value*, which is never undefined at the top level). Flat + refine matches the wire shape, gives per-party error `path`s, and `z.infer` reproduces the frontend type exactly.
+
+**XOR in JS:** `!!a !== !!b` = exactly one. `!(a && b)` = at most one (customer: optional but exclusive). **Trap:** chaining `!!a !== !!b !== !!c` is *parity* (true when an odd number are true), not "exactly one" — for N, count: `[a,b,c].filter(Boolean).length === 1`.
+
+**Also:** `.default()` splits input from output type (client may omit, `z.infer` says required) — used for `timestamp`/`source`, since the frontend never sends them and making them required would 400 every order. `isPossiblePhoneNumber` from **libphonenumber-js**, not react-phone-number-input (React UI lib on a Node bot; the former is the real home). `z.enum` for `shippingPayment` — server is stricter than the client, which is right: the client isn't the security boundary.
+
+**Resume:** finish the field-level validation port (helpers `text3to50` / `innSchema` / `positive` mirror the form's rules), then swap `routes/index.ts` to `parseBody(PickUpPointDeliverySchema, body)` — deletes ~80 lines — and delete the hand-written `PickUpPointDeliveryOrderPayload` interface in favour of `z.infer`. Then port `online-pickup-rf` (flat; its `requiredFields.filter(f => !payload[f])` also has the `!0`-is-falsy bug).
+
 ## 2026-07-11 (cont.) — reactive command registration (#3), 429 resolved
 
 **#3 shipped:** deleted the per-manager boot loop; a manager's command scope is now set in the `/addmanager` handler (all three non-error outcomes — `already_manager` too, since the menu may have been cleared) and torn down in `/removemanager` on `revoked`. Boot only sets the static scopes now (public, all_private_chats, admin). Closes the parked menu-source-mismatch note (menus now flow from the same DB write-path).

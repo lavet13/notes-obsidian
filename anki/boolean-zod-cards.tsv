@@ -1,0 +1,43 @@
+#separator:Tab
+#html:false
+#notetype:Basic
+#deck:Dev
+#tags column:3
+"Logic: XOR vs inclusive OR — what's the difference?"	"OR  (inclusive, v) = AT LEAST one true — BOTH is allowed.  T v T = T
+XOR (exclusive, +) = EXACTLY one true — both or neither is FALSE.  T + T = F
+Mnemonic: XOR = ""one or the other, BUT NOT BOTH"".
+Tell in code: `if (!a && !b) error` rejects only NEITHER -> that's inclusive OR
+(""at least one""), NOT XOR. XOR must also reject BOTH."	"dev-env logic booleans"
+"JS: express 'exactly one of a, b' (XOR) in one expression?"	"!!a !== !!b
+Coerce both to booleans, then ""they differ"" == exactly one is truthy.
+  T,T -> false   T,F -> true   F,T -> true   F,F -> false
+(Works for TWO operands only — see the N-operand card.)"	"dev-env logic booleans"
+"JS: the boolean-combination cheat sheet for two flags a, b?"	"at least one (OR) : !!a || !!b
+exactly one  (XOR): !!a !== !!b
+at most one       : !(a && b)          // neither is OK, both is not
+both        (AND) : !!a && !!b
+neither     (NOR) : !a && !b
+not both    (NAND): !(a && b)          // same as ""at most one""
+=> ""optional but mutually exclusive"" = at most one = !(a && b)"	"dev-env logic booleans"
+"JS: why doesn't `!!a !== !!b !== !!c` mean 'exactly one of three'?"	"Chained !== is PARITY, not ""exactly one"": it's true when an ODD number are true.
+  a=T,b=T,c=T -> true  (three truthy WRONGLY passes)
+For N operands, COUNT instead:
+  const n = [a,b,c].filter(Boolean).length;
+  n === 1  exactly one (real N-ary XOR)   n >= 1  at least one
+  n <= 1   at most one                    n === 0 none
+Two-operand !!a !== !!b works only because parity and ""exactly one"" coincide at N=2."	"dev-env logic booleans"
+"Zod: cross-field rule like 'exactly one of sender / companySender'?"	".refine() on the OBJECT schema — it sees the whole parsed object, returns a boolean.
+  z.object({ sender: A.optional(), companySender: B.optional() })
+    .refine(d => !!d.sender !== !!d.companySender,
+            { error: ""..."", path: [""sender""] })   // path attaches the issue to a field
+Chain more .refine()s for more rules. .superRefine((d, ctx) => ctx.addIssue({...}))
+when you need several/targeted issues from one check."	"donbass-post zod refine"
+"Zod: make a field guaranteed in the OUTPUT without requiring the client to send it?"	".default() — it splits the input type from the output type.
+  timestamp: z.iso.datetime().default(() => new Date().toISOString())
+INPUT: optional (client may omit).  OUTPUT: required — z.infer types it `string`,
+not `string | undefined`, because zod fills it during parse.
+(Contrast: dropping .optional() forces the CLIENT to send it -> breaks the contract.)"	"donbass-post zod defaults"
+"Boundary rule: which payload shape do you model in a schema?"	"The one the PRODUCER actually sends — verified by reading the client, not inferred
+from the old server code. (Real case: server validated `sender` with inner company
+fields; the frontend actually sent `{sender} | {companySender}` — different keys,
+different shapes. The schema would have modelled a fiction.)"	"donbass-post architecture boundaries"

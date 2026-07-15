@@ -127,3 +127,53 @@ export function parseChatId(raw: string): number | null {
 // '123abc' -> Number -> NaN -> fail;  '12.9' -> 12.9 -> .int() fail;  '-100' -> ok.
 // vs parseInt('123abc')=123, parseInt('12.9')=12 (lenient truncation — wrong for a full id).
 ```
+
+## Cross-field rules: `.refine()` on the object
+```typescript
+z.object({ sender: A.optional(), companySender: B.optional() })
+  .refine((d) => !!d.sender !== !!d.companySender,   // XOR: exactly one
+          { error: "…", path: ["sender"] })          // path attaches the issue to a field
+  .refine((d) => !(d.customer && d.companyCustomer), // at most one (optional but exclusive)
+          { error: "…", path: ["customer"] });
+```
+> `.superRefine((d, ctx) => ctx.addIssue({...}))` when one check must raise several/targeted issues.
+
+## `.default()` splits INPUT type from OUTPUT type
+```typescript
+timestamp: z.iso.datetime().default(() => new Date().toISOString()),
+// INPUT: optional — client may omit.  OUTPUT: required — z.infer types it `string`.
+```
+> Use this instead of dropping `.optional()` when you want certainty downstream WITHOUT
+> forcing the client to send the field (dropping .optional() changes the contract → 400s).
+
+## Modelling "either A or B" payloads
+Prefer a FLAT object with optional sibling keys + `.refine()` over `z.union` / intersections:
+- `A.and(B)` returns a `ZodIntersection` → loses `.pick`/`.omit`/`.extend` (docs: prefer `A.extend(B)`).
+- Union errors stack every branch's failures; refine gives one message at a `path`.
+- `.optional()` on a union applies to the VALUE — at the top level the object is never undefined,
+  so the union still runs. Optionality belongs on the KEY.
+- `z.discriminatedUnion("type", …)` is better *when the wire payload carries a literal discriminator*.
+  Discriminating by "which key is present" is not that — use flat + refine.
+
+## Server should be stricter than the client
+```typescript
+shippingPayment: z.enum(["Отправитель", "Получатель", "Третье лицо"]),  // form only checks non-empty
+```
+> The client isn't the security boundary. Bonus: `z.enum` narrows `z.infer` to the literal union.
+
+## DRY the repeated field rules
+```typescript
+const text3to50 = (required: string, range: string) =>
+  z.string({ error: required }).trim().min(1, required).min(3, range).max(50, range);
+const innSchema = z.string().regex(/^\d{10,12}$/, "ИНН должен содержать от 10 до 12 цифр");
+// ^ the server can't rely on an input mask, so encode the mask's rule (digits, max 12) in the regex.
+```
+
+## Phone validation on the server
+```typescript
+import { isPossiblePhoneNumber } from "libphonenumber-js";  // NOT react-phone-number-input (React UI lib)
+const phoneSchema = z.string({ error: "Заполните телефон!" })
+  .refine((v) => isPossiblePhoneNumber(v), { error: "Проверьте правильно ли ввели номер телефона!" });
+```
+> `isPossiblePhoneNumber` = length plausibility only (lenient, any country).
+> `isValidPhoneNumber` = checks real number ranges. Pass a country for stricter: `(v, "RU")`.
