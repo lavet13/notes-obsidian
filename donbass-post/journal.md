@@ -7,6 +7,20 @@ tags: []
 
 # Journal
 
+## 2026-07-12 — /api/notify zod migration: shipped
+
+Deployed. Verified against the pushed tree: unions in place, top-level XOR refines gone, formatters narrow with `in`, `handleNotify` live, `REGISTER_COMMANDS` fully removed from env.ts.
+
+**The session's real lesson — I modelled the wrong client, twice.** `apps/web` looks like the frontend, but it POSTs to `workplace-post.ru` (co-worker's backend). `/api/notify`'s actual producer is the **old PHP site's jQuery**. Modelling on React gave: sibling `{sender} | {companySender}` keys (wrong — it's one `sender` key, two shapes), `pointFrom: number` (wrong — the producer resolves ids→display names before POSTing), and a "whatsapp casing typo fix" that was actually two producers legitimately differing (would have silently dropped the field — `.default(false)` hides it). **The old hand-written interface disagreed with me every time and was right every time.** Working code is evidence.
+
+**Shape → tool:** one key with two shapes = `z.union` on the VALUE; the XOR is inherent, so all three hand-written refines evaporated. (Earlier note in zod-knowledge.md said "prefer flat+refine over unions" — that was derived from the wrong shape and has been CORRECTED in the file.) Formatters use `in` narrowing: same runtime test as the old truthiness checks, but the compiler understands it.
+
+**`z.infer` as an audit:** tightening types produced 47 compile errors that were really a checklist — and surfaced two live prod bugs (formatter printed the SENDER's pointFrom as the recipient's pickup point; read `service.name`, which the wire never carried → `undefined`). The loose interface let the code lie.
+
+**Old-site JS bugs found:** `getFormattedServices` had a block body with no `return` → `additionalService` never reached the bot at all (fixed); `indexOf(service.id)` on an object array → always -1; company customers silently dropped (payload gates `customer` on an individual-only field); recipient transform early-returns after `pointTo`, so `deliveryCompany` would ship as a raw id (latent — `pointTo` is never set today).
+
+**Resume:** `NODE_ENV==="production"` self-removal gate → the real "would this leave zero active managers?" count invariant. Small, self-contained, environment-agnostic; also fixes single-user testing.
+
 ## 2026-07-12 — /api/notify zod migration: the pick-up-point-delivery schema
 
 Started the parse-don't-validate migration. `ali-parcel-pickup` was already zod (`parseBody` + schema) — it's the template; the other two endpoints hand-roll checks.

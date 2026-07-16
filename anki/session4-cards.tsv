@@ -1,0 +1,27 @@
+#separator:Tab
+#html:false
+#notetype:Basic
+#deck:Dev
+#tags column:3
+"TS: how do you narrow a union of object types?"	"The `in` operator is a type guard — test a key unique to one branch:
+  if (""nameSender"" in sender) { sender.nameSender }   // narrowed to branch A
+  else                        { sender.companySender } // narrowed to branch B
+  sender.phoneSender  // shared by BOTH branches -> no narrowing needed
+vs `if (obj.nameSender && ...)` on a bag-of-optionals: same runtime test, but the
+compiler learns nothing. `in` checks AND narrows."	"donbass-post typescript narrowing"
+"Zod: 'either A or B' — union, flat+refine, or discriminatedUnion?"	"Match the KEY structure the producer actually sends:
+  ONE key, two shapes      -> z.union([A, B]) on the VALUE. XOR is inherent, no refine.
+                              .optional() works (the value can be undefined).
+  SIBLING keys, one of two -> flat z.object + .refine(!!a !== !!b). Optionality on the KEYS
+                              (.optional() on a union would apply to the whole object).
+  literal tag on the wire  -> z.discriminatedUnion(""type"", [...]). Best errors.
+Union tradeoff: must match a branch EXACTLY or you get a vague ""invalid union"" 400."	"donbass-post zod unions"
+"Whose payload shape do you model in a schema?"	"The REAL producer's — verify by reading the actual client, not the tidiest/nearest one.
+Real case: the bot's /api/notify client is an old PHP site's jQuery, NOT the React app
+(which posts to a different backend). Modelling on React produced a schema that would
+400 every live request. Identify the producer BEFORE writing the schema."	"donbass-post architecture boundaries"
+"What's the prior when existing code contradicts your model?"	"""They know something I don't"" — working code is EVIDENCE, especially when two places
+independently agree.
+Real case: two endpoints used whatsappSender vs whatsAppSender. Looked like a typo;
+it was two different producers. ""Fixing"" it would silently drop the field — and a
+.default(false) makes the absence look intentional. Silent, not loud."	"donbass-post architecture judgement"

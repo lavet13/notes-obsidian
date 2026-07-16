@@ -177,3 +177,25 @@ const phoneSchema = z.string({ error: "Заполните телефон!" })
 ```
 > `isPossiblePhoneNumber` = length plausibility only (lenient, any country).
 > `isValidPhoneNumber` = checks real number ranges. Pass a country for stricter: `(v, "RU")`.
+
+## Modelling "either A or B" payloads — match the KEY structure
+The right tool depends on how the producer shapes it. Read the producer, then pick:
+
+**One key, two shapes** → `z.union` on the VALUE. The XOR is inherent; no refines needed.
+```typescript
+sender: z.union([SenderIndividual, SenderCompany]),   // { sender: <either shape> }
+customer: z.union([A, B]).optional(),                 // .optional() works — the VALUE can be undefined
+```
+
+**Sibling keys, at most one present** → flat object + `.refine()`. `.optional()` on a union
+would apply to the whole object (never undefined), so optionality must live on each KEY.
+```typescript
+z.object({ sender: A.optional(), companySender: B.optional() })
+  .refine((d) => !!d.sender !== !!d.companySender, { error: "…", path: ["sender"] });
+```
+
+**A literal discriminator on the wire** (`{ type: "individual", … }`) → `z.discriminatedUnion("type", […])`.
+Best errors, but only if the payload actually carries the tag.
+
+> Tradeoff of unions: real strictness. A value must match one branch EXACTLY or you get a
+> confusing "invalid union" 400 — no partial-credit like a bag of optionals gives you.

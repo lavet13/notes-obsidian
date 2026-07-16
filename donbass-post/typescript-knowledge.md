@@ -143,3 +143,20 @@ export function parseChatId(raw: string): number | null {
 ```
 > Layering: keep `parseChatId` pure so commands that DON'T need auth (/addmanager) reuse it;
 > `resolveManagerCommand` composes the manager-membership check on top.
+
+## Narrowing a union of objects: the `in` operator
+`in` is a type guard. Testing a key unique to one branch narrows the union inside the block.
+```typescript
+type Sender = { nameSender: string; emailSender: string } | { companySender: string; innSender: string };
+
+if ("nameSender" in sender) {
+  sender.nameSender;      // ✓ narrowed to the individual branch
+} else {
+  sender.companySender;   // ✓ narrowed to the company branch (only two members → no third case)
+}
+sender.phoneSender;       // ✓ shared by BOTH branches → no narrowing needed
+```
+> Contrast with `if (obj.nameSender && …)` on a bag-of-optionals: same runtime test, but the
+> compiler learns nothing. `in` does the same check AND narrows.
+> Compiler errors improve too: `Property 'x' does not exist on type A | B` names both branches,
+> instead of a cascade of `possibly undefined`.
