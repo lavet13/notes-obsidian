@@ -52,7 +52,7 @@ agentic code generator.
 
 # Progress, handoffs & reference
 I keep notes per project/topic in Obsidian — one workspace per project (e.g. donbass-post,
-chzzk-dl-live, dev-env) — each containing:
+twitch-dl-live, dev-env) — each containing:
   - journal.md            → JOURNAL: session wraps, decisions, resume state (chronological).
   - <topic>-knowledge.md  → REFERENCE: timeless facts/syntax/idioms/APIs I look up
                             (e.g. bash-knowledge.md, grammy-knowledge.md, prisma-knowledge.md).
@@ -115,7 +115,7 @@ Rules:
   " doubling, and embedded newlines exact.
 - Tags column (field 3): every card gets the WORKSPACE tag — derived from whichever
   Obsidian workspace/knowledge file the cards come from (dev-env, donbass-post,
-  chzzk-dl-live, …), NOT hardcoded — so the whole batch groups together, PLUS 1-3
+  twitch-dl-live, …), NOT hardcoded — so the whole batch groups together, PLUS 1-3
   finer sub-topic tags, space-separated (e.g. for dev-env cards: "dev-env ssh github",
   "dev-env tmux clipboard", "dev-env bash regex"). If the workspace is ever ambiguous,
   ask which one. Sub-tags should mirror the knowledge-file section a card came from,
@@ -143,6 +143,22 @@ rate limit — ASK me to paste the current file list rather than guessing). Then
 - Same rule for cards: a card with no home in an existing file is the signal to name the
   gap, not to silently assume a new file.
 
+## Reading my repos (you have read access, no agency needed)
+All my repos are public, so you can ground yourself in the REAL tree instead of guessing.
+Fetch order:
+1. Tarball via codeload — the reliable one. Does NOT count against the API rate limit:
+   curl -fsSL -o r.tar.gz https://codeload.github.com/lavet13/<repo>/tar.gz/refs/heads/main
+   tar -xzf r.tar.gz     # → <repo>-main/ ; then read/grep it freely
+2. raw.githubusercontent.com/lavet13/<repo>/main/<path> — fine for one known file.
+3. api.github.com/repos/lavet13/<repo>/git/trees/main?recursive=1 — works but rate-limits
+   fast (60/hour, shared egress IP → often already 0). Don't depend on it.
+4. github.com/<user>/<repo>/tree/… is robots-blocked to you. Never your route.
+Caveat: this is the PUSHED tree — anything uncommitted or local-only I must paste.
+If a repo ever 404s from codeload (i.e. private), ASK me to paste (repomix.sh in nvim-lsp
+generates a single markdown dump for exactly this).
+My repos: debian-p10k-zsh (wsl-setup.sh + dotfiles), nvim-lsp (nvim config + .wezterm/),
+notes-obsidian (workspaces + anki/), donbass-post, donbass-tour.
+
 # Design before code
 - For a feature with real design choices, before we implement it, help me draft a
   short plan in docs/plans/<feature>.md: the problem, the approaches considered,
@@ -168,17 +184,45 @@ when one would genuinely save me pain. Russian is my first language; explain in
 English unless I ask otherwise.
 
 # My environment
-- Windows 10 host. WezTerm terminal; default shell Git Bash (MINGW64) for Windows-side
-  work, WSL Debian (via launch_menu) for Linux work.
-- WSL Debian: zsh + Oh My Zsh + Powerlevel10k; tmux auto-started from interactive .zshrc
-  (session "main") + tmux-sessionizer (prefix f); provisioned by wsl-setup.sh in my
-  debian-p10k-zsh repo. Projects live on native ext4 (Docker bind-mounts are slow).
-- Editor: Neovim 0.11.x, Lua config (my nvim-lsp repo, live working copy on main). Daily
-  drivers: Telescope, Harpoon, Fugitive + Gitsigns, conform.nvim (<leader>f), nvim-cmp +
-  Mason LSP, treesitter, nvim-surround, Comment.nvim, undotree.
-- Notes: obsidian.nvim, one workspace per project/topic, each with journal.md +
-  <topic>-knowledge.md. todo-comments tags: TODO FIX HACK WARN PERF NOTE TEST.
-  .env masked by cloak.nvim.
+- Windows 10 host. WezTerm terminal (its wezterm.lua is tracked in my nvim-lsp repo
+  under .wezterm/); default shell Git Bash (MINGW64) for Windows-side work, WSL Debian
+  for Linux work. Two launch_menu Debian entries: the default one lands in tmux, and a
+  no-tmux one (`wsl.exe -d Debian --cd ~ -- env NO_TMUX=1 zsh -li`) gives a plain shell.
+  WezTerm gotcha: duplicate key+mods → the LAST binding wins silently (`wezterm show-keys`).
+- WSL Debian: zsh + Oh My Zsh + Powerlevel10k; tmux auto-started from the TOP of the
+  interactive .zshrc (session "main" — the block MUST sit above p10k's instant-prompt
+  block or tmux dies with "open terminal failed: not a terminal") + tmux-sessionizer
+  (prefix f, searches ~/workspace). Provisioned by wsl-setup.sh in my debian-p10k-zsh
+  repo; dotfiles (.zshrc/.zshenv/.p10k.zsh/.tmux.conf/tmux-sessionizer) are SYMLINKED
+  from that repo — editing them in ~ edits the repo. Copy yanks reach the Windows
+  clipboard via OSC 52 (set-clipboard external), not clip.exe. Projects live on native
+  ext4 (Docker bind-mounts across the Windows boundary are slow).
+- Editor: Neovim 0.11.x (pinned tarball), Lua config in my nvim-lsp repo — live working
+  copy on main. lazy.nvim manages plugins; lazy-lock.json is committed (`:Lazy! restore`
+  installs at locked versions; `:Lazy sync` only when deliberately updating, then commit
+  the lock). Layout: init.lua → lua/lavet13/{init,set,remap,lazy}.lua — ALL plugin specs
+  live in one flat table in lazy.lua (NOT one file per plugin), with per-plugin config in
+  after/plugin/. Leader: <Space>.
+  - LSP:        nvim-lspconfig + mason.nvim + mason-lspconfig. NOT the native 0.11
+                vim.lsp.config API — don't hand me that syntax unless we migrate on purpose.
+  - Completion: nvim-cmp (+ cmp-nvim-lsp, cmp_luasnip); snippets = LuaSnip + friendly-snippets.
+  - Find/grep:  Telescope (pinned tag 0.1.5) + telescope-live-grep-args. No fzf-lua.
+  - Hopping:    Harpoon (theprimeagen/harpoon, v1 — not harpoon2).
+  - Explorer:   netrw only (<leader>pv = :Ex, banner off, winsize 25). No oil/neo-tree/nvim-tree.
+  - Git:        vim-fugitive + gitsigns.nvim.
+  - Format:     conform.nvim (<leader>f). No lint plugin — ruff/eslint arrive via LSP.
+  - Treesitter: nvim-treesitter + -context + -textobjects + nvim-ts-context-commentstring.
+  - Editing:    nvim-surround, Comment.nvim, undotree, vim-matchup.
+  - Notes:      obsidian.nvim; workspaces registered in lazy.lua → personal, donbass-post,
+                donbass-tour, twitch-dl-live, dev-env (all under ~/notes = my notes-obsidian
+                repo). todo-comments tags: TODO FIX HACK WARN PERF NOTE TEST. .env masked
+                by cloak.nvim.
+  - Colors:     naysayer.nvim, applied via ColorMyPencils() in after/plugin/colors.lua
+                (transparent Normal/NormalFloat). rose-pine + brightburn.vim also installed
+                but not active — rose-pine has a setup() in lazy.lua that never applies.
+  - Habits from set.lua worth assuming in snippets: 2-space indent + expandtab,
+    relativenumber, no swapfile/backup but undofile in ~/.vim/undodir, colorcolumn=80,
+    scrolloff=8, ignorecase+smartcase, winborder=rounded, guicursor="" (block cursor).
 - Python: per-project venv for libraries, pipx for CLIs (ruff, tldr), pyright for types.
   Windows venvs activate at .venv/Scripts/activate; on WSL/Linux .venv/bin/activate.
 - Anki: cards authored as a .tsv for File > Import (Basic note type -> Dev deck). No plugin/AnkiConnect.
