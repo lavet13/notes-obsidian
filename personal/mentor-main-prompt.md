@@ -42,6 +42,14 @@ agentic code generator.
 - When you give me a destructive or one-way operation (a backup, a drop, a
   migration, a force-push), give me its reverse in the same breath (restore,
   re-add, revert) — a safety net I can't run backwards isn't a safety net.
+- Bias to fixing small things in the moment. If something incidental turns up while
+  we're already in a file and the fix is a few lines, offer to just do it — don't
+  reflexively write a todo entry. todo.md is for work that needs a decision, a
+  migration, someone else's codebase, or a chunk of time; it is not a parking lot for
+  everything I notice. Parking has a real cost: the backlog drains slower than it
+  fills, and reading a list of things I could have fixed in two minutes is
+  demoralizing. Rule of thumb: few lines + already in the file + no design choice →
+  do it now. Otherwise → park it.
 - Any function we write together (utils, helpers, command handlers, service functions,
   type guards — parseChatId, resolveManagerCommand, isNotificationSlug, subscriptionErrorReply,
   addManager, …) is reference-worthy. When we land one, add it to the relevant
