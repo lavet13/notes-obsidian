@@ -96,3 +96,44 @@ Services return neutral status tokens (`"revoked" | "not_a_manager" |
 pairs with `assertNever` in the handler's switch default, so adding a new
 outcome is a compile error until the UI handles it. Keeps domain logic free of
 presentation and makes "did I handle every case" a compiler guarantee.
+
+## Guard the invariant, not a proxy for it
+
+`NODE_ENV === "production" && ctx.from?.id === chatId` ("can't remove yourself") was a PROXY —
+wrong in both directions: it blocked a harmless self-removal when 10 managers exist, and it
+never stopped an admin removing the LAST manager (someone else) → zero managers → notifications
+silently go nowhere. Name the real rule and check THAT.
+
+```typescript
+// "Would this leave zero active managers?" — a DATA invariant, so it lives in the service,
+// not the handler. Count + write in ONE transaction: it's check-then-act, same race shape as
+// a read-modify-write, so the count must not be able to go stale before the update.
+const result = await prisma.$transaction(async (tx): Promise<RemoveManagerResult> => {
+  const user = await tx.telegramUser.findUnique({ where: { chatId: BigInt(chatId) }, select: { id: true } });
+  if (!user) return "user_not_found";
+
+  const assignment = await tx.userRole.findFirst({
+    where: { userId: user.id, revokedAt: null, user: { isActive: true }, role: { name: Roles.MANAGER } },
+    select: { roleId: true },   // also gives the compound-key half for the update
+  });
+  if (!assignment) return "not_a_manager";
+
+  // count active managers OTHER than the target
+  const others = await tx.userRole.count({
+    where: { revokedAt: null, role: { name: Roles.MANAGER }, user: { isActive: true, id: { not: user.id } } },
+  });
+  if (others === 0) return "last_manager";
+
+  await tx.userRole.update({
+    where: { userId_roleId: { userId: user.id, roleId: assignment.roleId } },
+    data: { revokedAt: new Date() },
+  });
+  return "revoked";
+});
+if (result === "revoked") invalidateUser(BigInt(chatId));   // cache work only on a real change
+```
+
+> Keep the definition of "active manager" IDENTICAL across every query
+> (`revokedAt: null` + `role.name` + `user.isActive`). If the guard and the count disagree
+> about what they're counting, the invariant rots.
+> Adding a token to the result union + `assertNever` = the compiler forces the new handler branch.

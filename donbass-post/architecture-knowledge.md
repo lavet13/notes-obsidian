@@ -31,3 +31,27 @@ exhaustive audit of everything that believed the old fiction.
 > Real case: `z.infer` exposed a formatter printing the SENDER's pickup point as the
 > RECIPIENT's, and reading a field the wire never carried (printing `undefined` in prod).
 > The loose interface let the code lie; nothing could catch it.
+
+## Best-effort side effects get their own try/catch
+
+When a handler does a DURABLE write and then a side effect that can fail independently,
+wrap the side effect separately. Otherwise the outer catch conflates "it didn't happen" with
+"it happened but the follow-up didn't" — and you tell the user a lie about their own data.
+
+```typescript
+const result = await addManager({ chatId, … });   // committed — source of truth
+
+// Best-effort: a menu push can fail (chat never started the bot, 429, network).
+// That must NOT surface as "failed to add manager" — the manager WAS added.
+try {
+  await setCommandsForChat(ctx.api, chatId, publicCommands, managerCommands);
+} catch (err) {
+  console.error(`Command scope not set for ${chatId} (manager still added):`, err);
+}
+```
+> Real symptom this fixes: `/addmanager 999999999` (a fake chatId, for testing) committed the
+> row, then Telegram 400'd "chat not found", the outer catch fired, and the reply said
+> "❌ Произошла ошибка" — while the manager existed. The DB write is the truth; the
+> notification about it is not.
+> Same shape already used in `sendToManagers`: a failed `notificationLog` write logs and
+> continues rather than failing the send.

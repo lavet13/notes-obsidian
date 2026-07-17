@@ -12,9 +12,32 @@ Raw Postgres CLI reference — cross-project (any DB-backed work, not Prisma-spe
 ## Connecting inside a Docker Compose stack
 
 ```bash
-docker compose exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
-# -U = user, -d = database. The prompt becomes  dbname=#
+# Let the CONTAINER expand its own env vars — single quotes + sh -c defers expansion.
+docker exec -it donbass-post-db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+
+# One-shot query, no REPL:
+docker exec -it donbass-post-db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT name FROM roles;"'
+
+# `docker compose exec postgres …` also works — same quoting rule applies.
+# -it = interactive TTY, needed for the psql prompt (omit for one-shot in scripts/CI).
 ```
+
+```bash
+docker compose exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+#                                    ^^^^^^^^^^^^^^^^ double-quoted → YOUR shell expands this,
+#                                    before docker ever runs. POSTGRES_USER lives in
+#                                    apps/telegram-bot/.env, loaded into the CONTAINER via
+#                                    env_file — it's not in your shell. → expands to empty →
+#                                    `psql -U -d donbass_post` → psql reads "-d" as the username.
+```
+
+> **GOTCHA — where does `$VAR` expand?**
+> `docker exec db psql -U "$POSTGRES_USER"` → **your shell** expands it BEFORE docker runs.
+> The var lives in the container (via `env_file`), not your shell → expands to EMPTY →
+> `psql -U -d mydb` → psql reads `-d` as the username. Confusing error, wrong layer.
+> `sh -c '…$VAR…'` (SINGLE quotes) passes the string through literally; the container's
+> shell expands it against the container's env. Same rule for `docker run`, `ssh host '…'`,
+> and any `bash -c` — **single quotes = expand THERE, double quotes = expand HERE.**
 
 ## Meta-commands (psql's own backslash commands — NO semicolon)
 

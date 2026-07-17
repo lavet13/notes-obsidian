@@ -1,0 +1,35 @@
+#separator:Tab
+#html:false
+#notetype:Basic
+#deck:Dev
+#tags column:3
+"psql inside a Docker Compose stack: the connect command?"	"docker exec -it donbass-post-db sh -c 'psql -U ""$POSTGRES_USER"" -d ""$POSTGRES_DB""'
+
+SINGLE quotes + sh -c so the CONTAINER expands its own env vars.
+-it = interactive TTY (needed for the psql prompt).
+One-shot: append  -c ""SELECT ...;""  inside the quoted string."	"dev-env psql docker"
+"Shell: does $VAR expand on the HOST or in the container/remote?"	"Quoting decides WHEN it expands:
+  ""...""  double -> YOUR shell expands it BEFORE the command is sent (host value / empty)
+  '...'  single -> passed through literally; the INNER shell expands it (container value)
+
+  docker exec db psql -U ""$POSTGRES_USER""        # host expands -> EMPTY -> psql -U -d db
+  docker exec db sh -c 'psql -U ""$POSTGRES_USER""' # container expands -> correct
+Same rule for ssh host '...', bash -c, docker run."	"dev-env bash quoting docker"
+"Design smell: what's wrong with `if (NODE_ENV === 'production' && ...)` as a guard?"	"NODE_ENV is never the real rule — it's a PROXY for ""be careful where mistakes hurt"".
+The harm doesn't care about the environment, so the proxy is right by coincidence and
+wrong by construction.
+Real case: ""can't remove yourself"" blocked a harmless self-removal (10 managers exist) AND
+failed to stop removing the LAST manager (someone else) -> zero managers, notifications
+silently go nowhere. Name the real invariant (""would this leave zero?"") and check THAT."	"donbass-post architecture invariants"
+"Where does a data invariant like 'don't leave zero managers' live, and how?"	"In the SERVICE (data layer), not the handler — it's a data rule, not presentation.
+It's check-then-act, so the count and the write go in ONE transaction (else the count
+goes stale before the update — same race shape as read-modify-write).
+  const others = await tx.userRole.count({ where: { ...active, user: { id: { not: target } } } });
+  if (others === 0) return ""last_manager"";
+Keep the definition of ""active"" IDENTICAL across every query, or guard and counted set drift."	"donbass-post architecture invariants"
+"Handler does a durable write, then a side effect that can fail — how do you structure it?"	"Give the side effect its OWN try/catch. The outer catch would conflate
+""it didn't happen"" with ""it happened but the follow-up didn't"" -> you lie to the user.
+
+  const result = await addManager({...});   // committed, source of truth
+  try { await setCommandsForChat(ctx.api, chatId, ...); }   // best-effort
+  catch (err) { console.error(""scope not set (manager still added):"", err); }"	"donbass-post architecture error-handling"
