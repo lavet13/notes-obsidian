@@ -7,6 +7,20 @@ tags: []
 
 # Journal
 
+## 2026-07-12 (cont.) — NODE_ENV gate → count invariant
+
+**The gate was a proxy.** `NODE_ENV === "production" && ctx.from?.id === chatId` failed in both directions: too strict (blocked a harmless self-removal when other managers exist) and too weak (never stopped an admin removing the LAST manager — someone else — leaving zero, with notifications silently going nowhere). **Key insight: `NODE_ENV` is never the real rule.** It's a stand-in for "be careful where mistakes hurt" — but harm doesn't care about the environment, so the proxy is right by coincidence and wrong by construction.
+
+Replaced with the real invariant — "would this leave zero active managers?" — in `removeManager` (service, not handler: it's a data rule). Count + write in one `$transaction`, since it's check-then-act (same race shape as the read-modify-write we fixed in `/appendpreference`). New `last_manager` token → `assertNever` forced the handler branch. Dropped `user_deactivated` (an inactive user can't hold a *counted* active assignment, so `not_a_manager` covers it). Added `user: { isActive: true }` to the assignment lookup so all three queries share ONE definition of "active manager" — guard and counted set must agree or the invariant rots.
+
+**Also fixed now rather than parked:** `setCommandsForChat`/`clearCommandsForChat` now have their own try/catch. The DB write is committed and is the source of truth; a menu push failing (chat not found, 429) must not report the add/remove as failed. `/addmanager 999999999` used to say "❌ ошибка" while the manager *was* added. Also deleted the `result === "fresh" || "reactivated" || "already"` guard — it listed all three non-error outcomes, so it only *looked* like a decision.
+
+**Found: psql-knowledge.md documented a broken command.** `docker compose exec postgres psql -U "$POSTGRES_USER"` — double quotes mean the HOST shell expands it, but the var lives in the container via `env_file` → empty → `psql -U -d db` reads `-d` as the username. Fix: `sh -c 'psql -U "$POSTGRES_USER" …'` — single quotes defer expansion to the container. Note corrected.
+
+**Testing note:** no second Telegram account needed — `/addmanager <fake chatId>` now works cleanly (scope push fails harmlessly). Sequence: remove-self as sole manager → ⛔ last_manager; add fake; remove-self → ✅; re-add self; delete fake. This is the first genuine candidate for an automated test if a test DB ever gets stood up (guards a catastrophic silent state, hard to reproduce by hand) — but needs real Postgres, so parked.
+
+**Resume:** all non-parked bot items are done. Remaining is old-site JS bugs (fix when touching the PHP site), structural moves (`core/`, types.ts split), and CI chores (checkout@v5, knip).
+
 ## 2026-07-12 — /api/notify zod migration: shipped
 
 Deployed. Verified against the pushed tree: unions in place, top-level XOR refines gone, formatters narrow with `in`, `handleNotify` live, `REGISTER_COMMANDS` fully removed from env.ts.
