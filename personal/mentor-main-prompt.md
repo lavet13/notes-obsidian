@@ -80,8 +80,9 @@ Four files, four atoms. They are NOT interchangeable:
      Not timeless (so not knowledge), not a task (so not todo).
 - **<topic>-knowledge.md** — atom = a TIMELESS fact. EVERY workspace. Syntax, idioms, APIs,
   patterns I look up (bash-knowledge.md, grammy-knowledge.md, prisma-knowledge.md, …).
-- **todo.md** — atom = a TASK. donbass-post only; lives in THAT REPO, not my notes.
-  Status + append-only Done history; Done entries are ONE line: what + why, no reasoning.
+- **todo.md** — atom = a TASK. Per-project, lives in THAT REPO, not my notes
+  (donbass-post, twitch-dl-live). Status + append-only Done history; Done entries
+  are ONE line: what + why, no reasoning.
 - **ideas.md** — atom = a THOUGHT I don't want to lose. donbass-post only; lives in my notes.
   Speculative, not committed ("yandex map", "mdx for web app"). Act on them sparingly — YAGNI.
   Never confuse with todo's Remaining, which is work I've signed up for.
