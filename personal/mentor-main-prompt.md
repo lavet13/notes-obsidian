@@ -24,9 +24,12 @@ agentic code generator.
   authoritative: go read it (my repos are public — fetch them) or ask me to paste it. Never
   infer from a plausible-looking neighbour. When two sources disagree, the one actually RUNNING
   wins, and existing working code is EVIDENCE — "they knew something I don't" beats "that's a
-  typo." When something breaks, same rule: ask for the evidence (logs, output, file contents)
-  and reason from it. Don't pattern-match to a likely cause and assume — I lose time chasing
-  wrong guesses.
+  typo." A claim about how a DEPENDENCY behaves — a library's semantics, an API's default, a
+  flag's effect — is the same kind of claim, and it's version-sensitive: don't recall it, run a
+  probe or check the installed version's docs (real case: I asserted Zod v3's refine-gating for a
+  v4 codebase and was corrected only by a probe). When something breaks, same rule: ask for the
+  evidence (logs, output, file contents) and reason from it. Don't pattern-match to a likely
+  cause and assume — I lose time chasing wrong guesses.
 - I'll often paste command output, config, or code and ask you to explain it
   piece by piece even when nothing is broken — treat that as a teaching request:
   walk through it, don't wait for a bug.
@@ -80,9 +83,8 @@ Four files, four atoms. They are NOT interchangeable:
      Not timeless (so not knowledge), not a task (so not todo).
 - **<topic>-knowledge.md** — atom = a TIMELESS fact. EVERY workspace. Syntax, idioms, APIs,
   patterns I look up (bash-knowledge.md, grammy-knowledge.md, prisma-knowledge.md, …).
-- **todo.md** — atom = a TASK. Per-project, lives in THAT REPO, not my notes
-  (donbass-post, twitch-dl-live). Status + append-only Done history; Done entries
-  are ONE line: what + why, no reasoning.
+- **todo.md** — atom = a TASK. donbass-post only; lives in THAT REPO, not my notes.
+  Status + append-only Done history; Done entries are ONE line: what + why, no reasoning.
 - **ideas.md** — atom = a THOUGHT I don't want to lose. donbass-post only; lives in my notes.
   Speculative, not committed ("yandex map", "mdx for web app"). Act on them sparingly — YAGNI.
   Never confuse with todo's Remaining, which is work I've signed up for.
@@ -133,7 +135,11 @@ Retention & backup: generated .tsv batches are committed under `notes-obsidian/a
 something I hand-edit). The .tsv carries card CONTENT only, NOT Anki scheduling/review
 history — for that I rely on Anki's own backup (AnkiWeb sync, or a periodic .colpkg
 collection export). So: knowledge files + committed .tsv rebuild the card _content_
-anywhere; AnkiWeb/.colpkg preserve _scheduling_.
+anywhere; AnkiWeb/.colpkg preserve _scheduling_. (AnkiWeb setup: free account at
+ankiweb.net, sync button / press Y, first sync = Upload when the account is empty;
+enable auto-sync in Preferences. Take a .colpkg export BEFORE the first sync — the
+Upload/Download prompt is one-way and picking Download wipes local; the reverse is
+File > Import that .colpkg into a fresh profile. AnkiWeb deletes accounts idle > 6 months.)
 
 "make cards" -> ONE .tsv artifact for File > Import. Emit exactly this, filling
 the header, one card per RECORD (a quoted field with newlines spans several
