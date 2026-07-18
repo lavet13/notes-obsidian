@@ -15,9 +15,12 @@ function assertNever(x: never): never {
 }
 
 switch (result) {
-  case "a": /* ... */ return;
-  case "b": /* ... */ return;
-  default: return assertNever(result); // add "c" to the union → COMPILE error here
+  case "a":
+    /* ... */ return;
+  case "b":
+    /* ... */ return;
+  default:
+    return assertNever(result); // add "c" to the union → COMPILE error here
 }
 ```
 
@@ -25,7 +28,10 @@ Data counterpart: `Record<Union, T>` forces an entry for every member — add a
 union member and the object won't compile until you handle it.
 
 ```typescript
-type Notification = "online-pickup-rf" | "ali-parcel-pickup" | "pick-up-point-delivery-order";
+type Notification =
+  | "online-pickup-rf"
+  | "ali-parcel-pickup"
+  | "pick-up-point-delivery-order";
 
 // A Record keyed by the union forces an entry for EVERY member. Add a 4th
 // notification type and this object won't compile until you add its emoji.
@@ -48,53 +54,57 @@ JS/TS `RegExp` is ECMAScript flavor (PCRE-ish): it HAS what POSIX ERE lacks — 
 `(?:…)`, lookahead/lookbehind, backreferences. (bash `[[ =~ ]]` / `grep -E` are POSIX ERE: which have none.)
 
 ### Backreference IN the pattern: `\1` / `\k<name>`
+
 ```typescript
 // \1 matches the SAME TEXT group 1 captured — not "the pattern again".
-/(\w)\1/.test("hello");        // true  → "ll": \1 had to equal the captured "l"
-/(\w)\1/.test("abc");          // false → no adjacent repeat
-/(?<c>\w)\k<c>/.test("book");  // true  → "oo"; named backref is \k<name>
+/(\w)\1/.test("hello"); // true  → "ll": \1 had to equal the captured "l"
+/(\w)\1/.test("abc"); // false → no adjacent repeat
+/(?<c>\w)\k<c>/.test("book"); // true  → "oo"; named backref is \k<name>
 // Misread to avoid: /(\d)\1/ is NOT "two digits" — it's the SAME digit twice ("22", not "23").
 ```
 
 ### Backreference IN the replacement: `$1` / `$<name>` (different context!)
+
 ```typescript
-"2024-01-15".replace(/(\d{4})-(\d{2})-(\d{2})/, "$3.$2.$1");  // "15.01.2024"
-"2024-01".replace(/(?<y>\d{4})-(?<m>\d{2})/, "$<m>/$<y>");    // "01/2024"
+"2024-01-15".replace(/(\d{4})-(\d{2})-(\d{2})/, "$3.$2.$1"); // "15.01.2024"
+"2024-01".replace(/(?<y>\d{4})-(?<m>\d{2})/, "$<m>/$<y>"); // "01/2024"
 // Gotcha: \1 in a replacement string is a LITERAL, not a backref. Pattern uses \1; replace uses $1.
 ```
 
 ### Lookahead: `(?=…)` positive, `(?!…)` negative — assert without consuming
+
 ```typescript
 // Zero-width: checks what FOLLOWS but never becomes part of the match.
-"foobar".match(/foo(?=bar)/)?.[0];  // "foo"  → matched foo; "bar" NOT in the result
-"foobar".match(/foo(?!bar)/);       // null   → negative: fails because "bar" follows
-"foobaz".match(/foo(?!bar)/)?.[0];  // "foo"  → passes: "bar" does not follow
+"foobar".match(/foo(?=bar)/)?.[0]; // "foo"  → matched foo; "bar" NOT in the result
+"foobar".match(/foo(?!bar)/); // null   → negative: fails because "bar" follows
+"foobaz".match(/foo(?!bar)/)?.[0]; // "foo"  → passes: "bar" does not follow
 
-/(?=.*\d)(?=.*[a-z]).{8,}/.test("abcdef12");  // → true
+/(?=.*\d)(?=.*[a-z]).{8,}/.test("abcdef12"); // → true
 //  (?=.*\d)     from position 0, assert SOMEWHERE ahead there's a digit   (cursor doesn't move)
 //  (?=.*[a-z])  from the SAME position 0, assert somewhere ahead a lowercase (rewinds, re-checks)
 //  .{8,}        only NOW consume: ≥8 chars. Each (?=…) peeks & rewinds → it's "AND" in one pass.
 ```
 
 1. **"Ahead"** is relative to the current position, not the string's start. At position 0
-each `(?=.*…)` scans the whole string; if the engine were at position 3, they'd scan
-from 3 onward. They rewind the cursor to where they started (zero-width), so the two
-conditions are checked at the _same anchor_ point — that's what makes it an AND.
+   each `(?=.*…)` scans the whole string; if the engine were at position 3, they'd scan
+   from 3 onward. They rewind the cursor to where they started (zero-width), so the two
+   conditions are checked at the _same anchor_ point — that's what makes it an AND.
 
 2. `.test()` stops at the first position where all three succeed — it doesn't sweep
-every position. For `"abcdef12"` (exactly 8 chars) it resolves at position 0:
-position 1 would leave only 7 characters, failing `.{8,}`, so the engine never even advances.
-It's decided in one pass at the start.
-
+   every position. For `"abcdef12"` (exactly 8 chars) it resolves at position 0:
+   position 1 would leave only 7 characters, failing `.{8,}`, so the engine never even advances.
+   It's decided in one pass at the start.
 
 ### Lookbehind: `(?<=…)` positive, `(?<!…)` negative — same, backward
+
 ```typescript
-"$100".match(/(?<=\$)\d+/)?.[0];    // "100" → the $ is required but NOT captured
-"€50".match(/(?<!\$)\d+/)?.[0];     // "50"  → a number NOT preceded by $
+"$100".match(/(?<=\$)\d+/)?.[0]; // "100" → the $ is required but NOT captured
+"€50".match(/(?<!\$)\d+/)?.[0]; // "50"  → a number NOT preceded by $
 // ES2018. Node/modern V8 (your bot's runtime) = fine; only ancient browsers lacked it.
 ```
 
 ### Pitfall: catastrophic backtracking (ReDoS)
+
 ```typescript
 /(a+)+$/.test("aaaaaaaaaaaaaaaaaaaa!");
 //  (a+)   matches a run of a's…
@@ -107,56 +117,84 @@ It's decided in one pass at the start.
 ```
 
 ## Discriminated-union "Result" for parse-or-fail
+
 Return a value OR an error as data — don't throw, don't do I/O (reply/log) inside the parser.
 Keeps it pure-ish and unit-testable; the caller decides what to do with the error.
+
 ```typescript
 type Parsed =
   | { ok: true; chatId: number; rest: string[] }
-  | { ok: false; error: string };        // ready-to-send message, caller owns the reply
+  | { ok: false; error: string }; // ready-to-send message, caller owns the reply
 
 const parsed = parseCommandArgs(text, USAGE);
-if (!parsed.ok) { await ctx.reply(parsed.error); return; } // .ok narrows the union
-const { chatId, rest } = parsed;          // here TS knows the ok:true shape
+if (!parsed.ok) {
+  await ctx.reply(parsed.error);
+  return;
+} // .ok narrows the union
+const { chatId, rest } = parsed; // here TS knows the ok:true shape
 ```
+
 > zod's `safeParse` returns this exact shape: `{ success: true, data } | { success: false, error }`.
 
 ## Type guard (`x is T`) vs assertion (`as T`)
+
 A guard VERIFIES at runtime then narrows; `as` just tells the compiler to trust you (can lie).
+
 ```typescript
 export function isNotificationSlug(s: string): s is NotificationType {
-  return (VALID_SLUGS as readonly string[]).includes(s);   // real check
+  return (VALID_SLUGS as readonly string[]).includes(s); // real check
 }
-const [slug] = rest;                       // string | undefined
-if (!slug || !isNotificationSlug(slug)) return;            // slug is NotificationType past here
-const valid = rest.filter(isNotificationSlug);             // filter+guard: string[] -> NotificationType[]
+const [slug] = rest; // string | undefined
+if (!slug || !isNotificationSlug(slug)) return; // slug is NotificationType past here
+const valid = rest.filter(isNotificationSlug); // filter+guard: string[] -> NotificationType[]
 ```
+
 > `rest as [NotificationType]` would compile but is false safety — runtime `rest` is still `string[]`.
 
 ## parseChatId — strict integer parse
+
 ```typescript
 export function parseChatId(raw: string): number | null {
-  const n = Number(raw);                   // strict: '123abc' -> NaN
-  return Number.isInteger(n) ? n : null;   // rejects NaN AND floats ('12.9' -> null)
+  const n = Number(raw); // strict: '123abc' -> NaN
+  return Number.isInteger(n) ? n : null; // rejects NaN AND floats ('12.9' -> null)
 }
 // parseInt is LENIENT: parseInt('123abc') -> 123, parseInt('12.9') -> 12. Wrong for a whole-token id.
 // zod: const ChatId = z.coerce.number().int();  ChatId.safeParse(raw)
 ```
+
 > Layering: keep `parseChatId` pure so commands that DON'T need auth (/addmanager) reuse it;
 > `resolveManagerCommand` composes the manager-membership check on top.
 
 ## Narrowing a union of objects: the `in` operator
+
 `in` is a type guard. Testing a key unique to one branch narrows the union inside the block.
+
 ```typescript
-type Sender = { nameSender: string; emailSender: string } | { companySender: string; innSender: string };
+type Sender =
+  | { nameSender: string; emailSender: string }
+  | { companySender: string; innSender: string };
 
 if ("nameSender" in sender) {
-  sender.nameSender;      // ✓ narrowed to the individual branch
+  sender.nameSender; // ✓ narrowed to the individual branch
 } else {
-  sender.companySender;   // ✓ narrowed to the company branch (only two members → no third case)
+  sender.companySender; // ✓ narrowed to the company branch (only two members → no third case)
 }
-sender.phoneSender;       // ✓ shared by BOTH branches → no narrowing needed
+sender.phoneSender; // ✓ shared by BOTH branches → no narrowing needed
 ```
+
 > Contrast with `if (obj.nameSender && …)` on a bag-of-optionals: same runtime test, but the
 > compiler learns nothing. `in` does the same check AND narrows.
 > Compiler errors improve too: `Property 'x' does not exist on type A | B` names both branches,
 > instead of a cascade of `possibly undefined`.
+
+## Skip-comma destructuring is bound to array shape
+
+```typescript
+const [, sh, sm, eh, em] = match; // match[0] = full string → correctly skipped
+// BUT after a transform that changes the shape, the skip eats a real element:
+const nums = match.map(Number).filter(Number.isInteger); // drops NaN (the full-match slot)
+const [, a, b] = nums; // now index 0 is a real group → a,b shift left, last → undefined
+```
+
+> `[, x]` assumes index 0 is disposable. A `.filter()`/`.slice()` that removes the skipped slot
+> invalidates the assumption. Fix: drop the comma, or convert per-group off the raw `match`.

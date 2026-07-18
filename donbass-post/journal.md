@@ -7,13 +7,51 @@ tags: []
 
 # Journal
 
+## 2026-07-18 — online-pickup-rf notify: total outage diagnosed + fixed
+
+**The outage.** Zero online-pickup-rf notifications since the 07-12 zod migration. Root cause: the bot's `pickupTime` regex expected Cyrillic `с ЧЧ:ММ до ЧЧ:ММ`, but the producer (old PHP form) masks the field with Inputmask `"99:99 - 99:99"` → emits `"08:00 - 18:00"`. Every payload 400'd on pickupTime first. **Modelled the label, not the machine** — the input's `placeholder` reads "с Х часов до Х часов" but Inputmask overwrites it at runtime; the mask + submit handler are the producer, never the placeholder. Same class as modelling on apps/web (07-12): a plausible neighbour that reads like the truth.
+
+**Second dead-stop 400:** `shippingPayment` enum vs the form's `"Третье лицо(Заказчик)"` — disjoint set, not "stricter." Fixed to `.string().min(1)` (value is pure interpolation). Corrected the zod-knowledge "stricter than client" note, which used this exact field as its example.
+
+**Correction (evidence = my own probe):** claimed v3's "refine runs only if the object parses." **Zod v4 changed this** — object refines run even when fields fail (verified 4.4.3). So the XOR/customer refines HAVE run in prod; a real rejection log WOULD show cross-field issues. Re-examined and corrected mid-session.
+
+**Bugs traced (refines are live, not dormant):**
+
+- XOR (C): reachable — select a point, toggle to address mode, type address; nothing clears `pointTo` → both ship → 400.
+- Customer count (D): open, type one field, collapse, submit → `filled===1` → 400. `hidden ≠ absent`: only `disabled` drops a control from FormData.
+- `phoneSchema`: `isPossiblePhoneNumber(v)` with no country rejects `8…`/`9…` → latent outage behind pickupTime. Fixed with `{ defaultCountry: "RU" }`.
+- `validatePickupTime` destructure: `.map(Number).filter(isInteger)` drops the full-match slot, so the skip-comma eats a real group → `endMin` undefined. Fixed in all three copies (bot, php, react util).
+
+**Design throughline:** `/api/notify` fires AFTER the order is committed to workplace-post.ru and after the user is told it succeeded → rejecting can only LOSE a notification, never prevent a bad order. Parse for shape, don't police content. Caveat (Ivan): the endpoint is publicly reachable, so keep `end<=start`/`<120` as hardening against direct callers — not removed.
+
+**names/min-3 — left as-is (Ivan's call, correct):** workplace-post.ru enforces 3–50 and runs BEFORE notify in the submit sequence; a sub-3 name 400s there and never reaches the bot. Upstream gate ordering makes the bot's min-3 unreachable by legit traffic.
+
+**Discriminator:** producer sends `address-option` on the wire, but the separate primary endpoint means we can't cleanly carry it → guess by presence. VALID only if the form guarantees exactly one of pointTo/pickupAddressRecipient present — i.e. clear-on-toggle. Schema stays; form changes.
+
+**Resume / next step:**
+
+1. DEPLOY the bot `types.ts` fix — the actual outage fix (pickupTime anchored + destructure + phone defaultCountry + shippingPayment). Notifications restore on deploy.
+2. PHP clear-on-toggle (C+D): `clearHiddenFieldValues` helper + call in `updateAddressFieldsUI`; clear the 4 customer inputs in the collapse branch. `shouldValidateField` STAYS (clearing keeps fields in FormData as "").
+3. react `lib/utils.ts` `validatePickupTime`: anchor the regex (not `isAllowed`).
+4. VERIFY the both-repro against workplace-post.ru (DevTools Console+Network) before trusting the clear-on-toggle blast radius.
+
+**Commit (bot, on deploy):**
+​```
+fix(notify): repair online-pickup-rf schema — total notification outage since 07-12
+
+- pickupTime: match the producer's masked "HH:MM - HH:MM", not Cyrillic "с … до"
+- pickupTime: fix skip-comma destructure (filter dropped full-match slot → endMin undefined)
+- phone: accept RU national formats via { defaultCountry: "RU" }
+- shippingPayment: z.string().min(1) — display-only value; enum was disjoint from the form
+  ​```
+
 ## 2026-07-12 (cont.) — NODE_ENV gate → count invariant
 
 **The gate was a proxy.** `NODE_ENV === "production" && ctx.from?.id === chatId` failed in both directions: too strict (blocked a harmless self-removal when other managers exist) and too weak (never stopped an admin removing the LAST manager — someone else — leaving zero, with notifications silently going nowhere). **Key insight: `NODE_ENV` is never the real rule.** It's a stand-in for "be careful where mistakes hurt" — but harm doesn't care about the environment, so the proxy is right by coincidence and wrong by construction.
 
-Replaced with the real invariant — "would this leave zero active managers?" — in `removeManager` (service, not handler: it's a data rule). Count + write in one `$transaction`, since it's check-then-act (same race shape as the read-modify-write we fixed in `/appendpreference`). New `last_manager` token → `assertNever` forced the handler branch. Dropped `user_deactivated` (an inactive user can't hold a *counted* active assignment, so `not_a_manager` covers it). Added `user: { isActive: true }` to the assignment lookup so all three queries share ONE definition of "active manager" — guard and counted set must agree or the invariant rots.
+Replaced with the real invariant — "would this leave zero active managers?" — in `removeManager` (service, not handler: it's a data rule). Count + write in one `$transaction`, since it's check-then-act (same race shape as the read-modify-write we fixed in `/appendpreference`). New `last_manager` token → `assertNever` forced the handler branch. Dropped `user_deactivated` (an inactive user can't hold a _counted_ active assignment, so `not_a_manager` covers it). Added `user: { isActive: true }` to the assignment lookup so all three queries share ONE definition of "active manager" — guard and counted set must agree or the invariant rots.
 
-**Also fixed now rather than parked:** `setCommandsForChat`/`clearCommandsForChat` now have their own try/catch. The DB write is committed and is the source of truth; a menu push failing (chat not found, 429) must not report the add/remove as failed. `/addmanager 999999999` used to say "❌ ошибка" while the manager *was* added. Also deleted the `result === "fresh" || "reactivated" || "already"` guard — it listed all three non-error outcomes, so it only *looked* like a decision.
+**Also fixed now rather than parked:** `setCommandsForChat`/`clearCommandsForChat` now have their own try/catch. The DB write is committed and is the source of truth; a menu push failing (chat not found, 429) must not report the add/remove as failed. `/addmanager 999999999` used to say "❌ ошибка" while the manager _was_ added. Also deleted the `result === "fresh" || "reactivated" || "already"` guard — it listed all three non-error outcomes, so it only _looked_ like a decision.
 
 **Found: psql-knowledge.md documented a broken command.** `docker compose exec postgres psql -U "$POSTGRES_USER"` — double quotes mean the HOST shell expands it, but the var lives in the container via `env_file` → empty → `psql -U -d db` reads `-d` as the username. Fix: `sh -c 'psql -U "$POSTGRES_USER" …'` — single quotes defer expansion to the container. Note corrected.
 
@@ -39,11 +77,11 @@ Deployed. Verified against the pushed tree: unions in place, top-level XOR refin
 
 Started the parse-don't-validate migration. `ali-parcel-pickup` was already zod (`parseBody` + schema) — it's the template; the other two endpoints hand-roll checks.
 
-**The big catch — the server was validating a payload that doesn't exist.** Its manual checks assumed `sender` with optional company fields inside (inclusive-OR: `if (!hasPhysical && !hasCompany)` errors only on *neither*, so both was legal). Read the frontend: `transformFormDataToPayload` branches on a `type` radio and emits **different keys** — `{sender} | {companySender}`, exclusive, differently shaped. Confirmed by `PickUpPointDeliveryOrderVariables` (optional sibling keys). So it IS real XOR, and the old code modelled a fiction. **Rule: model the payload the producer actually sends, verified by reading the client.**
+**The big catch — the server was validating a payload that doesn't exist.** Its manual checks assumed `sender` with optional company fields inside (inclusive-OR: `if (!hasPhysical && !hasCompany)` errors only on _neither_, so both was legal). Read the frontend: `transformFormDataToPayload` branches on a `type` radio and emits **different keys** — `{sender} | {companySender}`, exclusive, differently shaped. Confirmed by `PickUpPointDeliveryOrderVariables` (optional sibling keys). So it IS real XOR, and the old code modelled a fiction. **Rule: model the payload the producer actually sends, verified by reading the client.**
 
-**Design chosen:** one flat `z.object` with optional sibling keys + three `.refine()`s, NOT `z.union`/intersections. Why: intersections return `ZodIntersection` (loses `.pick`/`.omit`/`.extend` per zod docs), stack union errors, and can't express "customer optional" (`.optional()` on a union applies to the *value*, which is never undefined at the top level). Flat + refine matches the wire shape, gives per-party error `path`s, and `z.infer` reproduces the frontend type exactly.
+**Design chosen:** one flat `z.object` with optional sibling keys + three `.refine()`s, NOT `z.union`/intersections. Why: intersections return `ZodIntersection` (loses `.pick`/`.omit`/`.extend` per zod docs), stack union errors, and can't express "customer optional" (`.optional()` on a union applies to the _value_, which is never undefined at the top level). Flat + refine matches the wire shape, gives per-party error `path`s, and `z.infer` reproduces the frontend type exactly.
 
-**XOR in JS:** `!!a !== !!b` = exactly one. `!(a && b)` = at most one (customer: optional but exclusive). **Trap:** chaining `!!a !== !!b !== !!c` is *parity* (true when an odd number are true), not "exactly one" — for N, count: `[a,b,c].filter(Boolean).length === 1`.
+**XOR in JS:** `!!a !== !!b` = exactly one. `!(a && b)` = at most one (customer: optional but exclusive). **Trap:** chaining `!!a !== !!b !== !!c` is _parity_ (true when an odd number are true), not "exactly one" — for N, count: `[a,b,c].filter(Boolean).length === 1`.
 
 **Also:** `.default()` splits input from output type (client may omit, `z.infer` says required) — used for `timestamp`/`source`, since the frontend never sends them and making them required would 400 every order. `isPossiblePhoneNumber` from **libphonenumber-js**, not react-phone-number-input (React UI lib on a Node bot; the former is the real home). `z.enum` for `shippingPayment` — server is stricter than the client, which is right: the client isn't the security boundary.
 
@@ -52,6 +90,7 @@ Started the parse-don't-validate migration. `ali-parcel-pickup` was already zod 
 ## 2026-07-11 (cont.) — reactive command registration (#3), 429 resolved
 
 **#3 shipped:** deleted the per-manager boot loop; a manager's command scope is now set in the `/addmanager` handler (all three non-error outcomes — `already_manager` too, since the menu may have been cleared) and torn down in `/removemanager` on `revoked`. Boot only sets the static scopes now (public, all_private_chats, admin). Closes the parked menu-source-mismatch note (menus now flow from the same DB write-path).
+
 - `setCommandsForChat` param widened `bot: Bot` → `api: Api` (it only ever used `bot.api`) — accept the narrowest dependency. Handlers pass `ctx.api`.
 - Added symmetric `clearCommandsForChat`. **Key Telegram insight:** each `{scope, language_code}` pair is an independent list; `setCommandsForChat` writes 4 (LOCALES), so removal must `deleteMyCommands` per-language or the localized menus survive. Scope precedence: chat → all_private_chats → default, so deleting the chat scope falls back to public.
 
@@ -69,7 +108,7 @@ Started the parse-don't-validate migration. `ali-parcel-pickup` was already zod 
 
 Reviewed the completed refactor. `resolveManagerCommand` now returns `userId` (rule-of-three cleared it — getAllManagers already needed the user row), so append/remove dropped their redundant per-command manager `findUnique`. `getAllManagers` → `{chatId, userId}[]`, threaded through `commands/index.ts`.
 
-- **Dead code after extract-and-replace:** the atomic `count` refactor orphaned `isManagerSubscribed` (its only callers were append/remove). Deleted. Key insight: `yarn check-types` stays green on dead *exports* — TS treats exported symbols as used-externally, so `noUnusedLocals` never flags them. Catch with grep or knip/ts-prune.
+- **Dead code after extract-and-replace:** the atomic `count` refactor orphaned `isManagerSubscribed` (its only callers were append/remove). Deleted. Key insight: `yarn check-types` stays green on dead _exports_ — TS treats exported symbols as used-externally, so `noUnusedLocals` never flags them. Catch with grep or knip/ts-prune.
 - **429 on boot:** `registerCommands` re-pushes all `setMyCommands` scopes every boot; tsx restarts on every save → cumulative rate-limit exhaustion (retry_after 841). Gated registration behind `NODE_ENV`/`REGISTER_COMMANDS` (fixed the `.default(true)`→`.default(false)` bug that made the gate a no-op). tsx watch = full process restart, NOT HMR — every startup side-effect re-runs.
 - **config.managers is redundant + buggy:** `/status` counts managers from the env bootstrap list, not the DB. Cleanup = migrate `status.ts`/`server.ts` to `getAllManagers()`, drop `AppConfig.managers`, keep `MANAGER_CHAT_IDS` for seed only.
 
@@ -77,10 +116,11 @@ Reviewed the completed refactor. `resolveManagerCommand` now returns `userId` (r
 
 ## 2026-07-11 — Preference commands: relation-filter refactor, arg-parser extraction, concurrency fix
 
-Resumed post-RBAC-migration cleanup. Started at "extract getManagerRole"; ended having *deleted* it — the session's throughline was **the best refactor often removes the need, not the duplication**.
+Resumed post-RBAC-migration cleanup. Started at "extract getManagerRole"; ended having _deleted_ it — the session's throughline was **the best refactor often removes the need, not the duplication**.
 
 **getManagerRole — extract vs delete.** Counted the actual code, not the plan: the `role.findUnique({name})` was 2× not 3× (removeManager already filtered via the relation). That was the tell that the lookup itself was avoidable. Decided `role_not_found` was dead defensive code (role is seeded), dropped the distinction, went relation-filter everywhere. → `getManagerRole` deleted with zero callers.
-  - `addManager` reworked: `findFirst({ where:{ userId, role:{name} } })` for the lookup, `role:{connect:{name}}` on create, reactivation `update` via the fetched row's own `roleId` (UserRole has a compound `@@id`, no scalar id). `manager_role_not_found` token gone.
+
+- `addManager` reworked: `findFirst({ where:{ userId, role:{name} } })` for the lookup, `role:{connect:{name}}` on create, reactivation `update` via the fetched row's own `roleId` (UserRole has a compound `@@id`, no scalar id). `manager_role_not_found` token gone.
 
 **Arg-parsing extraction → `commands/args.ts`.** `parseChatId` (pure; `Number.isInteger(Number(x))` — strict, unlike `parseInt`), `parseCommandArgs`, `resolveManagerCommand` (parse + authorize). Key insight: **return a discriminated-union Result, don't reply inside** — keeps I/O out and stays testable. Slug validation does NOT belong in the generic parser (it's domain knowledge, varies per command) — moved to the command layer as a `isNotificationSlug` **type guard** (`s is T` verifies-then-narrows; `as` only asserts and can lie). Fixed the `/setpreferences 123` clear-all bug for free (parser no longer demands a slug).
 
@@ -93,6 +133,7 @@ Resumed post-RBAC-migration cleanup. Started at "extract getManagerRole"; ended 
 **Open / resume:** Ivan is about to paste his completed append/remove/set + `args.ts` for review (he reports backticks fixed, dead `findUnique` dropped in remove, guard collapse done). Next after review: `NODE_ENV` gate → count invariant; then zod for `/api/notify/*`.
 
 **Commit (suggest 2–3 logical splits):**
+
 ```
 refactor(tg-bot): relation-filter manager lookups, drop getManagerRole
 
@@ -114,6 +155,7 @@ ci(tg-bot): skip deploy on docs-only changes (!apps/telegram-bot/*.md)
 ## 2026-06-25 — RBAC: soft-delete revocation + notification backfill
 
 ### Covered
+
 - **Soft-delete via `revokedAt` (UserRole):** revoking a role = stamping
   `revoked_at`, not deleting the row or disabling the account. Key insight:
   one flag, one meaning — `telegram_users.is_active` is account-level,
@@ -137,6 +179,7 @@ ci(tg-bot): skip deploy on docs-only changes (!apps/telegram-bot/*.md)
   runtime-removed rows from the frozen old table — same lesson as MANAGER_CHAT_IDS.
 
 ### Changed
+
 - Migration `add_lifecycle_timestamps_to_user_roles`: added `revoked_at`
   (nullable) + `granted_at` (default now). Additive, verified, applied in prod.
 - `removeManager`: revokes the manager UserRole (`updateMany` + `revokedAt: null`
@@ -151,6 +194,7 @@ ci(tg-bot): skip deploy on docs-only changes (!apps/telegram-bot/*.md)
 - Migrated `getAllManagers` off the legacy Manager table onto UserRole.
 
 ### Open threads / resume from
+
 1. **Notification migration step 2 (writes) — IN PROGRESS:** `setManagerPreferences`
    rewired to new table (pending the fix above); still TODO: the append/remove
    preference commands write to the old table.
@@ -165,6 +209,7 @@ ci(tg-bot): skip deploy on docs-only changes (!apps/telegram-bot/*.md)
 4. Then: Step 7 (drop legacy `Manager` + `ManagerNotificationPreferences`).
 
 ### Commit message (soft-delete work, ready once the FIX above lands)
+
 feat(tg-bot): soft-delete role revocation via revoked_at
 
 Revoke roles by stamping user_roles.revoked_at instead of flipping the

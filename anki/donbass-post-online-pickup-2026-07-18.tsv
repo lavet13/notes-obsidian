@@ -1,0 +1,23 @@
+#separator:Tab
+#html:false
+#notetype:Basic
+#deck:Dev
+#tags column:3
+"Zod v4: does a top-level `.refine()` / `.superRefine()` on `z.object({...})` run when one of the object's FIELDS fails to parse?"	"Yes — in Zod v4 it runs even when fields fail. It receives the parsed-so-far data (a field that failed its own `.min()` still passes its raw value through), so cross-field errors and field errors surface together in one safeParse.
+
+Zod v3 GATED it: the refine ran only if the whole object parsed first. So don't assume a refine is dormant just because a field is failing — that reasoning was v3-only."	"donbass-post zod refine"
+"Zod: reach for `.superRefine((d, ctx) => …)` over two chained `.refine()`s when?"	"When one pass must raise SEVERAL issues, or target different `path`s: `ctx.addIssue({ code: ""custom"", message, path })` can be called many times.
+
+It is NOT a way to ""un-gate"" checks — in v4 two `.refine()`s already both run regardless of field failures. superRefine is consolidation/ergonomics only."	"donbass-post zod refine"
+"JS: `const [, a, b] = arr` skip-first destructuring — what breaks if you `.filter()` a regex match array before destructuring it?"	"The leading `,` skips index 0. On a raw regex `match`, index 0 is the full-match string (correctly skipped). But `match.map(Number).filter(Number.isInteger)` DROPS that NaN slot — now index 0 is a real capture group, the skip-comma eats it, everything shifts left, and the last var reads past the end → undefined.
+
+Fix: drop the leading comma, OR don't filter — convert per group: `const [, sh, sm, eh, em] = match; Number(sh)…`. A skip-comma is bound to one array shape; a transform that changes the shape invalidates it."	"donbass-post typescript destructuring"
+"`isPossiblePhoneNumber(v)` (libphonenumber-js) rejects `89001234567` — why, and how to accept how Russians actually type?"	"With no country it parses as international → only `+`-prefixed E.164 passes; bare `8…`/`9…` national formats fail. Pass the object form `isPossiblePhoneNumber(v, { defaultCountry: ""RU"" })` so national formats parse.
+
+This is MORE permissive for local users, not stricter. `isPossiblePhoneNumber` = length plausibility; `isValidPhoneNumber` = real number ranges. Import from `libphonenumber-js`, NOT `react-phone-number-input` (that's the React UI lib)."	"donbass-post zod phone"
+"HTML forms: does a field with `display:none` (or inside a hidden container) get excluded from `FormData` / submission?"	"No. Only `disabled` removes a control from FormData; visibility (`display:none`, `visibility:hidden`, a hidden ancestor) does NOT — a hidden field keeps its value and still submits.
+
+Consequence: toggling a field out of view without clearing its value leaks stale input into the payload (e.g. select a pickup point, switch to address mode → both ship). Fix = clear the value (or set `disabled`) on toggle, not just hide it."	"donbass-post forms dom"
+"Validation at a notify/webhook endpoint that fires AFTER the real order is already committed upstream — reject bad input, or pass through?"	"Rejecting can't prevent the bad order (it already exists); a 400 only loses the manager notification. So parse for SHAPE (enough to interpolate/narrow safely) but don't police CONTENT with cross-field refines or enums on display-only values.
+
+Strictness is protective only where rejection blocks the bad thing — here rejection IS the failure mode. Caveat: if the endpoint is publicly reachable, keep enough validation that a direct caller can't crash it or inject garbage into the message."	"donbass-post architecture validation"

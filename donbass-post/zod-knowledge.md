@@ -72,7 +72,7 @@ the result into a real schema — the transform's OUTPUT becomes the pipe's INPU
 ```ts
 z.unknown()
   .transform((val) => (val === "" ? undefined : val)) // clean
-  .pipe(z.coerce.number().optional());                // validate the cleaned value
+  .pipe(z.coerce.number().optional()); // validate the cleaned value
 ```
 
 GOTCHA: a block-body arrow with no `return` returns `undefined`. In a transform
@@ -116,12 +116,14 @@ print a clear message and `process.exit(1)` rather than surfacing a raw stack
 trace. Fail at the boundary, once, so nothing downstream has to re-check.
 
 ## Strict scalar parse: `z.coerce.number().int()`
+
 For a whole-token numeric input (an id from a command string) you want STRICT parsing —
 reject trailing junk and floats, not truncate them like `parseInt`.
+
 ```typescript
-const ChatId = z.coerce.number().int();   // coerce = Number(raw); .int() rejects NaN AND floats
+const ChatId = z.coerce.number().int(); // coerce = Number(raw); .int() rejects NaN AND floats
 export function parseChatId(raw: string): number | null {
-  const r = ChatId.safeParse(raw);        // { success:true, data } | { success:false, error }
+  const r = ChatId.safeParse(raw); // { success:true, data } | { success:false, error }
   return r.success ? r.data : null;
 }
 // '123abc' -> Number -> NaN -> fail;  '12.9' -> 12.9 -> .int() fail;  '-100' -> ok.
@@ -129,59 +131,98 @@ export function parseChatId(raw: string): number | null {
 ```
 
 ## Cross-field rules: `.refine()` on the object
+
 ```typescript
 z.object({ sender: A.optional(), companySender: B.optional() })
-  .refine((d) => !!d.sender !== !!d.companySender,   // XOR: exactly one
-          { error: "…", path: ["sender"] })          // path attaches the issue to a field
-  .refine((d) => !(d.customer && d.companyCustomer), // at most one (optional but exclusive)
-          { error: "…", path: ["customer"] });
+  .refine(
+    (d) => !!d.sender !== !!d.companySender, // XOR: exactly one
+    { error: "…", path: ["sender"] },
+  ) // path attaches the issue to a field
+  .refine(
+    (d) => !(d.customer && d.companyCustomer), // at most one (optional but exclusive)
+    { error: "…", path: ["customer"] },
+  );
 ```
+
 > `.superRefine((d, ctx) => ctx.addIssue({...}))` when one check must raise several/targeted issues.
+> **Zod v4:** an object-level `.refine()`/`.superRefine()` runs EVEN WHEN a field fails to
+> parse — it receives the parsed-so-far data (a field that failed its own `.min()` still passes
+> its raw value through), so cross-field + field errors surface together. Zod v3 GATED it (refine
+> ran only if the whole object parsed). Verified on 4.4.3. Don't assume a refine is dormant just
+> because a field is failing.
 
 ## `.default()` splits INPUT type from OUTPUT type
+
 ```typescript
 timestamp: z.iso.datetime().default(() => new Date().toISOString()),
 // INPUT: optional — client may omit.  OUTPUT: required — z.infer types it `string`.
 ```
+
 > Use this instead of dropping `.optional()` when you want certainty downstream WITHOUT
 > forcing the client to send the field (dropping .optional() changes the contract → 400s).
 
 ## Modelling "either A or B" payloads
+
 Prefer a FLAT object with optional sibling keys + `.refine()` over `z.union` / intersections:
+
 - `A.and(B)` returns a `ZodIntersection` → loses `.pick`/`.omit`/`.extend` (docs: prefer `A.extend(B)`).
 - Union errors stack every branch's failures; refine gives one message at a `path`.
 - `.optional()` on a union applies to the VALUE — at the top level the object is never undefined,
   so the union still runs. Optionality belongs on the KEY.
-- `z.discriminatedUnion("type", …)` is better *when the wire payload carries a literal discriminator*.
+- `z.discriminatedUnion("type", …)` is better _when the wire payload carries a literal discriminator_.
   Discriminating by "which key is present" is not that — use flat + refine.
 
-## Server should be stricter than the client
+## "Stricter than the client" is only valid as a SUPERSET
+
 ```typescript
-shippingPayment: z.enum(["Отправитель", "Получатель", "Третье лицо"]),  // form only checks non-empty
+// WRONG here: form sends "Третье лицо(Заказчик)"; enum lists "Третье лицо" → disjoint → 400.
+shippingPayment: z.string().min(1),  // value is display-only (interpolated in the formatter)
 ```
-> The client isn't the security boundary. Bonus: `z.enum` narrows `z.infer` to the literal union.
+
+> Stricter-than-client is right only when your accepted set is a SUPERSET of what the client can
+> send AND something downstream depends on the narrowing. For a value you only ever interpolate,
+> an enum buys nothing and can only 400 when the label drifts. `z.infer` narrowing isn't worth a
+> production outage on a display string.
 
 ## DRY the repeated field rules
+
 ```typescript
 const text3to50 = (required: string, range: string) =>
-  z.string({ error: required }).trim().min(1, required).min(3, range).max(50, range);
-const innSchema = z.string().regex(/^\d{10,12}$/, "ИНН должен содержать от 10 до 12 цифр");
+  z
+    .string({ error: required })
+    .trim()
+    .min(1, required)
+    .min(3, range)
+    .max(50, range);
+const innSchema = z
+  .string()
+  .regex(/^\d{10,12}$/, "ИНН должен содержать от 10 до 12 цифр");
 // ^ the server can't rely on an input mask, so encode the mask's rule (digits, max 12) in the regex.
 ```
 
 ## Phone validation on the server
+
 ```typescript
-import { isPossiblePhoneNumber } from "libphonenumber-js";  // NOT react-phone-number-input (React UI lib)
-const phoneSchema = z.string({ error: "Заполните телефон!" })
-  .refine((v) => isPossiblePhoneNumber(v), { error: "Проверьте правильно ли ввели номер телефона!" });
+import { isPossiblePhoneNumber } from "libphonenumber-js"; // NOT react-phone-number-input (React UI lib)
+const phoneSchema = z
+  .string({ error: "Заполните телефон!" })
+  .refine((v) => isPossiblePhoneNumber(v), {
+    error: "Проверьте правильно ли ввели номер телефона!",
+  });
 ```
+
 > `isPossiblePhoneNumber` = length plausibility only (lenient, any country).
 > `isValidPhoneNumber` = checks real number ranges. Pass a country for stricter: `(v, "RU")`.
+> `{ defaultCountry: "RU" }` (object form) lets bare national formats — `8…`, `9…`, `8 (900)…` —
+> parse; WITHOUT it only `+`-prefixed E.164 passes. So it's MORE permissive for local users, not
+> stricter. `isPossiblePhoneNumber` = length plausibility; `isValidPhoneNumber` = real ranges.
 
 ## Modelling "either A or B" payloads — match the KEY structure
+
 The right tool depends on how the producer shapes it. Read the producer, then pick:
 
 **One key, two shapes** → `z.union` on the VALUE. The XOR is inherent; no refines needed.
+
 ```typescript
 sender: z.union([SenderIndividual, SenderCompany]),   // { sender: <either shape> }
 customer: z.union([A, B]).optional(),                 // .optional() works — the VALUE can be undefined
@@ -189,9 +230,12 @@ customer: z.union([A, B]).optional(),                 // .optional() works — t
 
 **Sibling keys, at most one present** → flat object + `.refine()`. `.optional()` on a union
 would apply to the whole object (never undefined), so optionality must live on each KEY.
+
 ```typescript
-z.object({ sender: A.optional(), companySender: B.optional() })
-  .refine((d) => !!d.sender !== !!d.companySender, { error: "…", path: ["sender"] });
+z.object({ sender: A.optional(), companySender: B.optional() }).refine(
+  (d) => !!d.sender !== !!d.companySender,
+  { error: "…", path: ["sender"] },
+);
 ```
 
 **A literal discriminator on the wire** (`{ type: "individual", … }`) → `z.discriminatedUnion("type", […])`.
