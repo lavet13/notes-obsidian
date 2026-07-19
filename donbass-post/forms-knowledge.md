@@ -113,3 +113,33 @@ rules (cross-field XOR, enums on display-only values) that can 400 legit traffic
 > Caveat: the endpoint is publicly reachable, so keep enough validation that a direct console
 > caller can't crash it or inject garbage into the message — format checks stay, they're
 > hardening. The line is: shape = keep; content-policing on a value you only interpolate = drop.
+
+## Rendering server errors: clear ALL, render one span per field
+
+For a legacy form that relies on the server (not client JS) for validation, the two
+functions that avoid the resubmit-duplication trap:
+
+```js
+function clearAllErrors(form) {
+  form.querySelectorAll(".form-error-message").forEach((el) => el.remove()); // ALL — not one sibling
+  form.querySelectorAll("[error]").forEach((el) => el.removeAttribute("error"));
+}
+function renderServerErrors(form, messages) {           // messages: { "sender.surnameSender": "…" }
+  clearAllErrors(form);
+  for (const [path, msg] of Object.entries(messages)) {
+    const name = path.split(".").pop();                 // last segment; NOT /\.\w+/ (breaks on .0.)
+    const field = form.querySelector(`[name="${name}"]`);
+    if (!field) continue;
+    field.setAttribute("error", "");
+    const span = document.createElement("span");
+    span.className = "form-error-message";
+    span.textContent = Array.isArray(msg) ? msg.join("; ") : msg;   // ONE span per field
+    (field.closest(".select-wrapper") ?? field).after(span);
+  }
+}
+```
+
+> The bug this replaces: clearing via `input.nextElementSibling` removes only the FIRST
+> sibling, so a field with two error spans keeps the second → duplicates grow on every
+> resubmit. Clearing by `querySelectorAll` (all of them) + one joined span per field
+> removes both the leak and the duplication.

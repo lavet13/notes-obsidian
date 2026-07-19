@@ -1,0 +1,17 @@
+#separator:Tab
+#html:false
+#notetype:Basic
+#deck:Dev
+#tags column:3
+"The old PHP forms POST to two servers — which validates what, and what's the ordering constraint?"	"Three layers: (1) old-form client JS validation; (2) workplace-post.ru — the primary order, the real security boundary, and the source of the errors you render; (3) the bot /api/notify schema, which fires ONLY AFTER workplace-post.ru succeeds.
+
+Constraint: the notify schema (3) must be NO STRICTER than workplace-post.ru (2). If it is, a submission (2) accepted will still 400 the notify → the manager message is silently dropped. To go client-validation-free, render (2)'s returned errors; (1) becomes deletable."	"donbass-post architecture validation"
+"Two sibling /api/notify endpoints have different schema shapes (flat+refine vs nested-union). Bug or correct?"	"Correct — a schema mirrors its PRODUCER, not its sibling. online-pickup is flat with cross-field refines because its form has no physical/company toggle. pick-up-point is nested z.union([Individual, Company]) per party because its form HAS Физ/Компания toggles for sender, recipient, customer.
+
+""Consistency"" means each mirrors its producer — which here yields different shapes. Forcing them to match would mismodel one."	"donbass-post zod architecture"
+"A form section that rebuilds via replaceChildren()/innerHTML on a toggle — hidden cost and hidden virtue?"	"Cost: every reference into that section goes stale — the query map, input masks, and event listeners must be RE-BOUND after each rebuild (this is the root of the duplicated inputs={} blocks + repeated addEvents()).
+
+Virtue: destroying the old fields clears their values for free, so there's NO stale-value leak → no clear-on-toggle needed (unlike a show/hide form, where hidden ≠ absent bites). Fix the duplication with event delegation (bind once on the form)."	"donbass-post forms dom"
+"Clearing form error spans by removing input.nextElementSibling — why does it leak on resubmit?"	"It removes only the FIRST sibling. A field rendered with two error spans keeps the second; each resubmit clears one and adds one, so duplicates accumulate — visible only on fields with >1 error.
+
+Fix: clear ALL of them — form.querySelectorAll('.form-error-message').forEach(el => el.remove()) — before re-rendering, and render ONE joined span per field. Also parse the server's nested key with path.split('.').pop(), not /\.\w+/ (which breaks on array indices like additionalService.0.id)."	"donbass-post forms dom"

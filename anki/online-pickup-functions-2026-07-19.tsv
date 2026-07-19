@@ -1,0 +1,51 @@
+#separator:Tab
+#html:false
+#notetype:Basic
+#deck:Dev
+#tags column:3
+"JS form UX: after building a `{field: message}` errors object, how do you show ALL errors and send the user to the first problem?"	"Loop the entries, render each, track the FIRST field that exists, and .focus() it at the end:
+
+function displayFormErrors(form, errors) {
+  let first = null;
+  for (const [name, msg] of Object.entries(errors)) {
+    showError(form, name, msg);
+    const field = form.querySelector(`[name=""${name}""]`);
+    if (field && !first) first = field;
+  }
+  if (first) first.focus();
+}
+
+Rendering everything at once (not one-at-a-time) plus focusing the first invalid field is the accessible pattern — the user sees all that's wrong and the cursor lands where they must start."	"donbass-post online-pickup forms"
+"Pattern for a data-driven field validator that can SKIP fields based on form context (hidden section, inactive toggle)?"	"One generic runner over a declarative rules table; context decides skips:
+
+function getFieldError(name, value, ctx) {
+  if (ctx.customerFields.includes(name) && !ctx.isCustomerVisible) return """";
+  if (ctx.addressToggle && !ctx.addressToggle.shouldValidateField(name)) return """";
+  for (const rule of (validationRules[name] ?? []))
+    if (!rule.validator(value))
+      return typeof rule.message === ""function"" ? rule.message(value) : rule.message;
+  return """";
+}
+
+Declarative validationRules + one runner = a fraction of the code of an inline imperative err-builder, and the skip-context stops hidden/inactive fields from firing spurious errors."	"donbass-post online-pickup validation"
+"How do you expose a couple of derived getters over some DOM elements without leaking the elements themselves?"	"A factory that captures the elements in a closure and returns only behaviour:
+
+const initAddressToggle = (form, removeErr) => {
+  const els = { selectRadio: ..., pointToControl: ..., ... };
+  const update = () => updateAddressFieldsUI(els, removeErr);
+  update();                                   // initial render
+  els.selectRadio.addEventListener('change', update);
+  return {                                     // callers get getters, not the DOM
+    getAddressMode: () => getAddressMode(els.selectRadio),
+    shouldValidateField: (n) => shouldValidateField(n, getAddressMode(els.selectRadio)),
+  };
+};
+
+The module owns its refs and wiring; the rest of the code depends only on the two getters. Encapsulation via closure."	"donbass-post online-pickup patterns"
+"Safe integer parse with a default — why not just parseInt(value)?"	"function parseIntSafe(value, def = 0) {
+  if (value == null || value === """") return def;
+  const n = parseInt(value, 10);
+  return Number.isNaN(n) ? def : n;
+}
+
+Raw parseInt("""") → NaN, which sails through a `typeof x === ""number""` payload filter and poisons the request (NaN serializes to null). A defaulted parse keeps the boundary clean — the same falsy/NaN class as the pointTo id trap."	"donbass-post online-pickup patterns"
