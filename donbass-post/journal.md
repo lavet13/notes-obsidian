@@ -7,6 +7,16 @@ tags: []
 
 # Journal
 
+## 2026-07-19 — online-pickup verified in prod; old-form dimensions fix; pick-up-point investigation opened
+
+**online-pickup-rf: CLOSED.** Deployed the bot `types.ts` fix. Prod-verified both modes + the worst case (filled customer then collapsed; filled pickupAddressRecipient then switched to pointTo — all in one submit). Payload dump confirms clear-on-toggle holds: `pointTo: 49` present, `pickupAddressRecipient` and all four customer fields absent from the payload. `shippingPayment: "Третье лицо(Заказчик)"` now accepted via `.string().min(1)`. Six-day notification outage over.
+
+**Old PHP form — dimensions/cubicMeter (the ⚠️ image bug):** длина/ширина/высота were marked `isFilled`-required in `validationRules`, firing "Обязательно" even when cubicMeter was filled. Fix = DELETE the three dimension rules — they're computation inputs, not required fields (the form's own copy says so, and `apps/web` gives them no validators). cubicMeter's `> 0` rule is the single volume invariant; every path (type cubicMeter / fill dims / fill nothing) is covered by validating only the canonical field. Removing rules fixed it; a cross-field skip would've been the complex wrong answer.
+
+**cubicMeter lock — `disabled` would've silently re-opened a 400.** Wanted: lock cubicMeter when all 3 dims filled. `disabled` EXCLUDES a control from FormData (verified via jsdom), and this form builds `data` from FormData entries → a disabled cubicMeter → `data.cubicMeter` undefined → dropped from payload → bot's `positive()` 400s. `readonly` SUBMITS. Used `anCubicMeter.options.readOnly(allDims)` in one `syncCubicMeterLock()` (single source of truth; dropped a redundant inner `readOnly(true)`). Visual: toggle an owned `is-computed` class (grey + `not-allowed`) + a `title` explaining why/how-to-unlock — NOT `input[readonly]` CSS (don't couple to whether autoNumeric reflects readonly to the DOM attribute). React gets away with `disabled` because it builds the payload from form STATE, not the DOM — same keyword, opposite result.
+
+**Resume:** investigate the OTHER notify endpoint — `pick-up-point-delivery-order` — against its old PHP producer (`zayavka-nazaborDNR-new.php`). Never tested since the zod migration. Schema is DEEPLY NESTED (`{ sender: I|C, recipient: I|C, customer: (I|C)?, cargoData }`) unlike online-pickup's flat shape — so the decisive unknown is whether the producer POSTs nested or flat. Need the producer's payload dump or its transform JS. Risk map below.
+
 ## 2026-07-18 — online-pickup-rf notify: total outage diagnosed + fixed
 
 **The outage.** Zero online-pickup-rf notifications since the 07-12 zod migration. Root cause: the bot's `pickupTime` regex expected Cyrillic `с ЧЧ:ММ до ЧЧ:ММ`, but the producer (old PHP form) masks the field with Inputmask `"99:99 - 99:99"` → emits `"08:00 - 18:00"`. Every payload 400'd on pickupTime first. **Modelled the label, not the machine** — the input's `placeholder` reads "с Х часов до Х часов" but Inputmask overwrites it at runtime; the mask + submit handler are the producer, never the placeholder. Same class as modelling on apps/web (07-12): a plausible neighbour that reads like the truth.

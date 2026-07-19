@@ -44,6 +44,14 @@ el.disabled = true;          // THIS removes it from FormData
 > Visibility is cosmetic; `disabled` and value-clearing are the only things that change the
 > payload.
 
+> **`readonly` submits; `disabled` doesn't.** For a COMPUTED field that must still reach
+> the payload (e.g. cubicMeter derived from dimensions), lock it with `readonly`, never
+> `disabled` — disabled drops it from FormData → missing from a DOM-built payload → server
+> 400 on a required field. (Verified: jsdom FormData excludes disabled, keeps readonly.)
+> React can use `disabled` freely because it builds the payload from form STATE, not the DOM;
+> a FormData-derived payload can't. Style an OWNED class (`.is-computed`), not `input[readonly]`
+> — don't assume the lib reflects readonly to the DOM attribute.
+
 ## Clear-on-toggle: fix the leak at the source, not with a cross-field refine
 
 A cross-field refine (`exactly one of A/B present`) and "guess the mode by which field is
