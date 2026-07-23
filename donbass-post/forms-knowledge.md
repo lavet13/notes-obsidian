@@ -143,3 +143,50 @@ function renderServerErrors(form, messages) {           // messages: { "sender.s
 > sibling, so a field with two error spans keeps the second → duplicates grow on every
 > resubmit. Clearing by `querySelectorAll` (all of them) + one joined span per field
 > removes both the leak and the duplication.
+
+## ref: replaying DOM-built state on reload (2026-07-23)
+
+Three-part problem when persisting a form whose sections are built dynamically
+(insertAdjacentHTML / replaceChildren / AJAX):
+
+1. **Save the meaning, not the raw value.** Unvalued radios submit as "on" —
+   store the actual choice under a meta-key (`__senderMode = el.id`), and skip
+   raw radios in the delegated value-saver.
+2. **Replay structure before values.** On load: re-fire each saved toggle with
+   `el.dispatchEvent(new Event('change', {bubbles:true}))` to rebuild the DOM,
+   THEN `loadFromLocalStorage()` to pour values in. `.click()` is wrong here —
+   it no-ops on an already-checked radio and fires nothing.
+3. **Ordering.** The replay must run (a) after every handler is attached — so
+   put it at the END of `$(document).ready`, not mid-file where a later
+   handler (`#customer-toggle` click) doesn't exist yet; and (b) after the
+   relevant AJAX resolves for AJAX-built sections (services), so replay the
+   service choices at the tail of that success callback, not in the global
+   replay.
+
+Namespace storage per form (`STORAGE_KEY = "pick-up-point-business-order"`) so
+multiple forms don't collide, and clear BOTH `localStorage.removeItem(KEY)` and
+the in-memory `localStorageData = {}` on submit — removeItem clears disk, not
+the variable, and a stale in-memory object re-opens sections you just reset.
+
+## ref: validation-harvest + align-to-the-gate (2026-07-23)
+
+When a downstream schema (bot notify) fires only AFTER a primary system
+(workplace-post.ru) commits, it must be **no stricter** than that primary
+system — extra strictness can only silently drop the downstream event, never
+block a bad order. The bug: mirroring the OLD CLIENT validation (min-5) instead
+of the server (min-3) made 3-4 char names 400 the notify while the order went
+through.
+
+**Harvest the real rules** instead of guessing: POST degenerate payloads
+(1-char strings, 0 numbers) to the server from the console and read the 400
+bodies — they expose the actual minimums. Align to that.
+
+**Structural mismatch:** workplace-post.ru keys by mode at the TOP level
+(sender vs companySender). Producer uses computed keys
+`[isCompanySender ? "companySender" : "sender"]: data`; the notify transform
+renames company keys back — and the rename must be applied in EVERY return
+branch, or the early-return paths emit un-renamed keys.
+
+**Justified client guards** (the one place client-side checks belong): only for
+things the server cannot see through a mask/format — half-masked phone via
+`inputmask.isComplete()`, empty select, null money field.

@@ -7,6 +7,24 @@ tags: []
 
 # Journal
 
+## 2026-07-22/23 — pick-up-point form refactor + schema alignment
+
+Closed the pick-up-point notify mismatch and did a full refactor of the legacy
+jQuery form. Highlights: validation-harvest against workplace-post.ru proved the
+bot was stricter than the real gate (min-5 vs min-3) → consolidated to one
+`text()` helper, committed server-side. Restructured the producer payload to
+workplace-post.ru's mode-specific top-level keys (sender/companySender…) with a
+notify transform that renames back. Migrated to server-only error rendering,
+event delegation (deleted the ~hundreds-of-lines inputs={} maps), namespaced
+per-form localStorage, and replay-on-reload for toggles + additional services.
+nvim: matchit tag-`%` regression traced to `vim.g.no_plugin_maps=true` from the
+treesitter-textobjects config suppressing the built-in ftplugin map; `--clean`
+was the decisive test.
+
+Note to self: several fixes landed because I tested the reproduction rather than
+accepting the first theory (keyup for phone persistence, --clean for matchit).
+That instinct is the thing to keep leaning on.
+
 ## 2026-07-19 — online-pickup verified in prod; old-form dimensions fix; pick-up-point investigation opened
 
 **online-pickup-rf: CLOSED.** Deployed the bot `types.ts` fix. Prod-verified both modes + the worst case (filled customer then collapsed; filled pickupAddressRecipient then switched to pointTo — all in one submit). Payload dump confirms clear-on-toggle holds: `pointTo: 49` present, `pickupAddressRecipient` and all four customer fields absent from the payload. `shippingPayment: "Третье лицо(Заказчик)"` now accepted via `.string().min(1)`. Six-day notification outage over.
