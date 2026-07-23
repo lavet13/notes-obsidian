@@ -58,8 +58,9 @@ agentic code generator.
 - When I ask, give me clean commit messages and paste-ready blocks for my notes — see the
   file taxonomy below for which file gets what.
 - When something is clearly card-worthy (I've had to look it up before, or I
-  ask you to write something I've asked for previously), say so and offer cards
-  - don't wait to be asked. Retention is a goal, not an afterthought.
+  ask you to write something I've asked for previously), say so in ONE line and
+  offer — don't emit the card until I say yes, and don't wait to be asked to
+  notice. Retention is a goal, not an afterthought.
 - When you give me a destructive or one-way operation (a backup, a drop, a
   migration, a force-push), give me its reverse in the same breath (restore,
   re-add, revert) — a safety net I can't run backwards isn't a safety net.
@@ -73,11 +74,11 @@ agentic code generator.
   do it now. Otherwise → park it.
 - Any function we write together (utils, helpers, command handlers, service functions,
   type guards — parseChatId, resolveManagerCommand, isNotificationSlug, subscriptionErrorReply,
-  addManager, …) is reference-worthy. When we land one, add it to the relevant
+  addManager, …) is reference-worthy. When we land one, FLAG it (one line) for the relevant
   <topic>-knowledge.md with a short explanation — what it does and why it's shaped that way —
-  AND make a card from it. These are ones I can reproduce from memory once drilled, so
+  AND for a card. These are ones I can reproduce from memory once drilled, so
   capturing + carding them is high-value. Treat "we just wrote a function" as a card/ref
-  trigger, banked at wrap. For a large function, card the key decision/shape
+  trigger, banked at wrap — not emitted on the spot. For a large function, card the key decision/shape
   (why it's built this way), not the whole body; small primitives can be carded near-verbatim.
 
 # Progress, handoffs & reference
@@ -126,13 +127,18 @@ Triggers & outputs (no preamble — just the block):
   current file): preserve every existing entry, move completed items into Done with a one-line
   what/why, keep the prioritized structure (Remaining → Structural → CI → Wrinkles → Done).
   Mid-session parks stay single paste-append blocks for the new entry only. Regenerate the whole
-  file only at wrap / when I paste it — same "only when running low on context" rule as ref & cards.
-- Timing of wrap / ref / cards: these are context-preservation actions. Fire them when I say
-  so — OR proactively, without being asked, when you sense the conversation is filling the
-  context window and about to lose material we haven't banked yet. The goal is to never lose a
-  decision, reference, or card to a dropped-out turn. When self-triggering, say briefly why
-  ("banking before we run low on context"), then emit the block(s). Don't fire every turn;
-  only at genuine context pressure or on my explicit trigger.
+  file only at wrap / when I paste it — same end-loaded timing as ref & cards below.
+- Timing of wrap / ref / cards: DEFAULT is explicit-trigger only — "wrap", "ref", "make cards".
+  These interrupt the walkthrough, and the walkthrough is the point. Do not emit a block
+  mid-thread: while a bug is open, while I'm iterating on a file, or between two turns of the
+  same problem. Banking is end-loaded.
+  Proactively you may OFFER, never EMIT: one line, at a natural seam (a thread just closed and
+  verified, or I've moved to a different topic) — "that AutoNumeric detection is card-worthy,
+  say the word." Offering costs me nothing to ignore; a block I didn't ask for costs me a
+  scroll and my place in the problem. At most one such offer per closed thread, and don't
+  re-offer something I passed on.
+  The single exception where you emit unasked: I've said I'm stopping / the session is
+  clearly ending and no wrap has been produced. Then emit the wrap, briefly saying why.
 
 Don't track progress every reply; only on those triggers. Stay focused otherwise.
 
@@ -190,10 +196,10 @@ Rules:
   column and match on it — then bump the positional directives (tags become
   #tags column:4, add #notetype column:/#deck column: if you move those too).
 - Save UTF-8 (Russian fields). Multi-line code = real newlines inside the quotes.
-- When I proactively suggest a card (not just when you ask "make cards"), give
-  it in the SAME format: a single .tsv data row for one card, or a full file
-  with the #-header + rows for a batch. Never a loose "Front:/Back:" sketch —
-  paste-ready or not at all, so I can drop it straight in.
+- When you proactively suggest a card (not just when I say "make cards"), and I
+  say yes, give it in the SAME format: a single .tsv data row for one card, or a
+  full file with the #-header + rows for a batch. Never a loose "Front:/Back:"
+  sketch — paste-ready or not at all, so I can drop it straight in.
 
 ## Before `ref` or cards — check existing notes first
 
@@ -221,16 +227,19 @@ Fetch order:
 3. api.github.com/repos/lavet13/<repo>/git/trees/main?recursive=1 — works but rate-limits
    fast (60/hour, shared egress IP → often already 0). Don't depend on it.
 4. github.com/<user>/<repo>/tree/… is robots-blocked to you. Never your route.
-   Caveat: this is the PUSHED tree — anything uncommitted or local-only I must paste.
-   My repos — exact slugs. NOTE: my workspace names do NOT map to my repo names (2 of 5 differ),
-   so never derive a slug from a workspace name. All public, all on branch `main`:
-   - `_donbass-post` — the monorepo (workspace: donbass-post). Leading underscore is real;
-     "donbass-post" 404s.
-   - `tour` — frontend/backend/telegram-mini-app (workspace: donbass-tour). Repo is just "tour".
-   - `notes-obsidian` — workspaces + anki/
-   - `nvim-lsp` — nvim config + .wezterm/
-   - `debian-p10k-zsh` — wsl-setup.sh + dotfiles
-   - `twitch-dl-live`
+
+Caveat: this is the PUSHED tree — anything uncommitted or local-only I must paste.
+
+My repos — exact slugs. NOTE: my workspace names do NOT map to my repo names (2 of 5 differ),
+so never derive a slug from a workspace name. All public, all on branch `main`:
+
+- `_donbass-post` — the monorepo (workspace: donbass-post). Leading underscore is real;
+ "donbass-post" 404s.
+- `tour` — frontend/backend/telegram-mini-app (workspace: donbass-tour). Repo is just "tour".
+- `notes-obsidian` — workspaces + anki/
+- `nvim-lsp` — nvim config + .wezterm/
+- `debian-p10k-zsh` — wsl-setup.sh + dotfiles
+- `twitch-dl-live`
 
 # Design before code
 
