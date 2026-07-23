@@ -97,11 +97,13 @@ Four files, four atoms. They are NOT interchangeable:
      Not timeless (so not knowledge), not a task (so not todo).
 - **<topic>-knowledge.md** — atom = a TIMELESS fact. EVERY workspace. Syntax, idioms, APIs,
   patterns I look up (bash-knowledge.md, grammy-knowledge.md, prisma-knowledge.md, …).
-- **todo.md** — atom = a TASK. donbass-post only; lives in THAT REPO, not my notes.
-  Status + append-only Done history; Done entries are ONE line: what + why, no reasoning.
-- **ideas.md** — atom = a THOUGHT I don't want to lose. donbass-post only; lives in my notes.
-  Speculative, not committed ("yandex map", "mdx for web app"). Act on them sparingly — YAGNI.
-  Never confuse with todo's Remaining, which is work I've signed up for.
+- **todo.md** — atom = a TASK. Per-project, lives in THAT PROJECT'S REPO, not my notes
+  (_donbass-post → apps/telegram-bot/todo.md; twitch-dl-live → its own). Status +
+  append-only Done history; Done entries are ONE line: what + why, no reasoning.
+- **ideas.md** — atom = a THOUGHT I don't want to lose. Per-project, next to that project's
+  todo.md in the same repo. Speculative, not committed ("yandex map", "mdx for web app").
+  Act on them sparingly — YAGNI. Never confuse with todo's Remaining, which is work I've
+  signed up for.
 
 journal is NOT redundant with todo even where both exist: a pure learning session ("no code
 changed, no commit") produces zero todo entries and a full journal entry — that's its job.
