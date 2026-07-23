@@ -1,7 +1,44 @@
-When a notification/downstream schema fires AFTER a primary system commits, how strict should it be relative to that primary system?	No stricter. The downstream can only reject after the primary already accepted, so any extra strictness silently drops valid downstream events (e.g. a manager notification) without blocking the real order. Align the downstream to the REAL gate (the server that commits), never to client validation you are in the process of deleting. Verify the gate's actual rules by probing it with degenerate payloads and reading the 400s, not by guessing.
-Why does a section built by insertAdjacentHTML/replaceChildren need its state REPLAYED on reload rather than just its values restored?	Because the values have nowhere to land until the DOM structure exists. Restoring `input.value` only works if that input is present. For toggle-built or AJAX-built sections you must first re-fire the toggle (dispatchEvent('change')) to rebuild the DOM, THEN pour values in. Ordering constraint: the replay must run after the relevant event handlers are attached, and for AJAX-built content, after that AJAX resolves.
-Why prefer el.dispatchEvent(new Event('change')) over el.click() when programmatically restoring a radio's state?	.click() on an already-checked radio is a no-op — it fires no change event, so the handler that builds dependent DOM never runs. dispatchEvent(new Event('change',{bubbles:true})) fires the handler unconditionally, regardless of current checked state. Use it whenever restore must trigger side effects even when the target is already in the desired state.
-An unvalued form radio (no value attr) submits as what, and why does that pollute a naive localStorage save?	It submits as the string "on". A delegated save that reads el.value stores `{radioName: "on"}` — useless (tells you a radio is checked, not which mode). Persist the meaningful state separately (e.g. __senderMode = el.id) and SKIP raw radios in the value-save path. The "on" default is the same footgun as an unchecked checkbox being absent from FormData.
-When a transform maps over entries and has early returns per branch, where must a key-rename be applied?	In EVERY return path, not just the fall-through. If the rename only sits at the final `return [adjustedName, value]`, any branch that returns early (e.g. after resolving a nested id) emits the un-renamed key. The common case often hits the early return, so the rename appears to "never work". Hoist the rename helper above the branches and call it on all returns.
-On Neovim 0.11, matchit is a built-in OPTIONAL package. If b:match_words is set correctly but `:map %` shows nothing and tag-jumping fails, what's the likely cause?	A flag suppressing built-in ftplugin mappings (e.g. vim.g.no_plugin_maps=true, often set by a treesitter-textobjects config) — b:match_words is a variable so it's unaffected, but matchit's tag `%` map is installed via the ftplugin path and gets suppressed. Confirm by bisecting against `nvim --clean +"packadd matchit"`. Fix: scope the flag per-filetype instead of globally, or drop it. Do NOT hand-map % to <Plug>(MatchitNormalForward) in operator-pending mode — it breaks d%/c%/y%.
-Insert-mode indent shortcuts in Vim/Neovim: shift right vs shift left without leaving insert mode?	Ctrl-T shifts the line right by one shiftwidth; Ctrl-D shifts it left. Both stay in insert mode and respect shiftwidth. (0 then Ctrl-D removes all indent on the line.)
+#separator:Tab
+#html:false
+#notetype:Basic
+#deck:Dev
+#tags column:3
+"When a notification/downstream schema fires AFTER a primary system commits, how strict should it be relative to that primary system?"	"No stricter. The downstream can only reject after the primary already accepted, so extra strictness silently drops valid downstream events (e.g. a manager notification) without ever blocking a bad order.
+
+Align to the REAL gate (the server that commits), never to client validation you're deleting. Learn the gate's actual rules by probing it with degenerate payloads (1-char strings, 0 numbers) and reading the 400 bodies.
+
+Real case: bot notify required min-5 surnames because the OLD form did; workplace-post.ru only requires 3 -> ""Ким"" passed the order and 400'd the notify."	"donbass-post validation notify"
+"Why does a section built by insertAdjacentHTML / AJAX need its STATE replayed on reload, not just its values restored?"	"Values have nowhere to land until the DOM exists: input.value = x is a no-op if that input hasn't been built yet.
+
+Order must be: re-fire the toggle to rebuild the DOM -> THEN pour values in.
+
+Two ordering constraints:
+- the replay must run after every handler is attached (put it at the END of $(document).ready, not mid-file)
+- for AJAX-built sections, replay inside/after that AJAX success, not in the global replay"	"donbass-post forms localstorage"
+"Why prefer el.dispatchEvent(new Event('change')) over el.click() when restoring a radio programmatically?"	".click() on an ALREADY-CHECKED radio is a no-op: no change event fires, so the handler that builds the dependent DOM never runs.
+
+dispatchEvent(new Event('change', {bubbles: true})) fires the handler unconditionally, whatever the current checked state.
+
+Use it whenever restore must trigger side effects even when the target is already in the desired state."	"donbass-post forms dom"
+"An unvalued form radio (no value attribute) submits as what — and why does that poison a naive localStorage save?"	"It submits as the string ""on"".
+
+A delegated saver reading el.value stores {senderMode: ""on""} — useless: it says a radio is checked, not WHICH one.
+
+Fix: persist the meaningful state under its own key (__senderMode = el.id) and SKIP raw radios in the value-save path.
+
+Same family as: an unchecked checkbox is ABSENT from FormData, and a disabled control is absent too."	"donbass-post forms localstorage"
+"In a transform that maps entries with early returns per branch, where must a key-rename be applied?"	"In EVERY return path, not just the fall-through.
+
+If the rename only sits at the final `return [adjusted(name), value]`, any branch that returns early emits the UN-renamed key — and the early branch is usually the common case, so the rename looks like it ""never works"".
+
+Hoist the rename helper above the branches; call it at each return."	"donbass-post javascript refactoring"
+"How do you generically detect whether an input is managed by AutoNumeric (vs a plain input) when restoring values?"	"Ask the element, don't maintain a list of field names:
+
+  AutoNumeric.isManagedByAutoNumeric(el)   // boolean
+  AutoNumeric.getAutoNumericElement(el)    // instance | null
+
+Then restore with .set(number) — assigning .value leaves a raw string that the widget won't format.
+
+Symmetric on save: store .getNumber(), not the formatted ""1 234 ₽"".
+
+Same shape as the el.inputmask check for masked fields."	"donbass-post forms autonumeric"

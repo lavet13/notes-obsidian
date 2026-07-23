@@ -7,6 +7,46 @@ tags: []
 
 # Journal
 
+## 2026-07-22/23 — pick-up-point: schema alignment, payload restructure, persistence
+
+### Learned
+
+- **Align the downstream schema to the GATE, not to the client you're deleting.** The bot
+  notify schema had `text5to50` for surnames because the OLD form did; workplace-post.ru only
+  enforces min-3. A validation-harvest (degenerate 1-char payloads POSTed from the console,
+  read the 400 bodies) exposed the real ruleset. Since notify fires only AFTER the order
+  commits, extra strictness can only lose a manager message — never block a bad order.
+- **Replay structure before values.** For DOM built by `insertAdjacentHTML`/AJAX, restoring
+  `input.value` is a no-op until the section exists. Order: re-fire the toggle
+  (`dispatchEvent(new Event('change'))` — `.click()` no-ops on an already-checked radio),
+  THEN pour values. And the replay must run after every handler is attached (moved to the end
+  of `$(document).ready`; `#customer-toggle`'s listener is registered near the bottom of the
+  file, so an earlier call clicked a live element with no handler on it).
+- **Ask the element what's attached to it.** `AutoNumeric.isManagedByAutoNumeric(el)` /
+  `getAutoNumericElement(el)` generalize the numeric-field branch instead of maintaining a
+  list of names — same shape as the existing `el.inputmask` check.
+- **Rename in every return branch.** The notify transform's early returns (pointFrom /
+  deliveryCompany resolution) skipped `adjustedFieldName`, so the common company case shipped
+  `companySender` to an endpoint expecting `sender`.
+
+### Changed
+
+- `notifications/types.ts`: four `textNtoM` helpers → one `text(min, required, minMsg)`;
+  every field now looser-or-equal to workplace-post.ru. Committed (`fix(notify): align …`).
+- Producer payload keys by mode: `[isCompanySender ? "companySender" : "sender"]: data`
+  (+ recipient/customer); notify transform renames back on all paths.
+- pick-up-point form: server-only error rendering (`clearAllErrors` + `renderServerErrors`),
+  event delegation (deleted every `inputs = {…}` map), `novalidate` on the form,
+  per-form `STORAGE_KEY`, toggle/service replay via `__senderMode`/`__recipientMode`/
+  `__customerMode`/`__customerOpen`/`__services`, `parseId` for numeric ids
+  (omit `deliveryCompany` when falsy — `0` was 400ing the notify).
+- Justified client guards (things the server can't see through a mask): incomplete phone via
+  `inputmask.isComplete()`, empty `shippingPayment`, null `cashOnDelivery`.
+- nvim: tag-`%` regression was `vim.g.no_plugin_maps = true` (from the treesitter-textobjects
+  spec) suppressing built-in ftplugin maps. Commented out; matchit's `b:match_words` +
+  built-in `%` work, `d%`/`c%` intact. Do NOT map `%` to `<Plug>(MatchitNormalForward)` —
+  it breaks operator-pending.
+
 ## 2026-07-22/23 — pick-up-point form refactor + schema alignment
 
 Closed the pick-up-point notify mismatch and did a full refactor of the legacy

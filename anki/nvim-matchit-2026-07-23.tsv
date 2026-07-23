@@ -1,0 +1,21 @@
+#separator:Tab
+#html:false
+#notetype:Basic
+#deck:Dev
+#tags column:3
+"Neovim 0.11: b:match_words is correct in TSX but `:map %` shows nothing and tag-jumping is dead. Likely cause?"	"A flag suppressing built-in ftplugin mappings — typically vim.g.no_plugin_maps = true, often copied from a nvim-treesitter-textobjects config.
+
+Why it looks confusing: b:match_words is a VARIABLE (unaffected), but matchit's tag `%` map is installed via the ftplugin path, which the flag suppresses.
+
+Confirm by bisecting against a clean run:
+  nvim --clean +""packadd matchit"" +""e test.tsx""
+
+Fix: scope per-filetype (vim.g.no_python_maps, ...) or drop the flag."	"dev-env nvim matchit"
+"Why should you NOT map % to <Plug>(MatchitNormalForward) to ""fix"" tag jumping?"	"It breaks operator-pending: d%, c%, y% stop working, because the <Plug> motion doesn't compose the way the built-in % does across n/x/o modes.
+
+General rule: don't hand-map something a well-built plugin wants to own — check WHY its own mapping didn't install instead of substituting your own."	"dev-env nvim matchit"
+"Insert mode: shift the current line right vs left, without leaving insert mode?"	"Ctrl-T  -> shift right one 'shiftwidth'
+Ctrl-D  -> shift left one 'shiftwidth'
+
+Both respect shiftwidth and keep you in insert mode.
+(0 then Ctrl-D removes ALL indent on the line.)"	"dev-env nvim editing"
