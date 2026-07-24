@@ -7,6 +7,37 @@ tags: []
 
 # Journal
 
+## 2026-07-23 — pick-up-point closed; spreadsheet ingestion specced
+
+### Learned
+- **Align a downstream schema to the GATE, not to the client you're deleting.** Harvest the real
+  rules by POSTing degenerate payloads and reading the 400s. The bot had been mirroring the old
+  form (min-5) instead of workplace-post.ru (min-3), silently dropping notifications.
+- **Replay structure before values** when restoring DOM-built forms; `dispatchEvent('change')`
+  over `.click()` (no-op on an already-checked radio); replay must run after all handlers attach.
+- **A diagnostic that returns the same value under both hypotheses isn't a test** —
+  `exists('g:loaded_matchit')` cost hours; `nvim --clean` settled it in one run.
+
+### Changed
+- notify schemas aligned + consolidated to one `text()` helper; payload keyed by mode
+  (`companySender`/…) with the notify transform renaming back on every return path.
+- pick-up-point form: server-only errors, event delegation, namespaced localStorage with
+  toggle/service replay, generic AutoNumeric handling, justified client guards. Verified in prod,
+  both branches.
+- nvim: tag-`%` regression was `vim.g.no_plugin_maps` suppressing built-in ftplugin maps.
+- mentor-main-prompt: evidence-rule extended to method EXISTENCE; new falsifiable-diagnostic
+  rule; countable two-strikes yield rule; banking rule reversed to explicit-trigger/end-loaded
+  (it was firing every 2–3 messages); todo/ideas taxonomy generalized to any repo.
+- New `dev-env/nvim-knowledge.md`; regenerated `anki/pick-up-point-refactor-2026-07-23.tsv`
+  properly (the first emit had no header/quoting/tags) + new `anki/nvim-matchit-2026-07-23.tsv`.
+
+### Resume from
+The 🔴 Urgent todo entry — spreadsheet ingestion. Transform is fully derived from a real
+before/after pair (6 files → 3 workbooks; merge / side-by-side / stacked, per family) and auth is
+`POST /api/auth/manager {login,password}` → `{tokenManager}` → `Bearer`. Next concrete step:
+capture ONE real upload request per endpoint in DevTools (multipart field name, content-type),
+then confirm the Bot API `getFile` size ceiling — largest source file is 3.1 MB.
+
 ## 2026-07-22/23 — pick-up-point: schema alignment, payload restructure, persistence
 
 ### Learned
