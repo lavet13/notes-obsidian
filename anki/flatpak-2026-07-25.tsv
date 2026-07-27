@@ -1,0 +1,29 @@
+#separator:Tab
+#html:false
+#notetype:Basic
+#deck:Dev
+#tags column:3
+"Flatpak: first-time setup + install an app from Flathub?"	"sudo pacman -S --needed flatpak
+flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+flatpak install flathub <app-id>     # e.g. org.vinegarhq.Sober
+flatpak run <app-id>                  # launch from terminal"	"dev-env flatpak"
+"Flatpak: update apps -- and why isn't `pacman -Syu` enough?"	"flatpak update              # all flatpak apps + runtimes
+flatpak update <app-id>     # just one
+
+Flatpak is a SEPARATE package system from pacman. `pacman -Syu` never touches
+flatpaks and vice versa -- keep the system current with BOTH."	"dev-env flatpak"
+"Just installed my first flatpak but it's not in the app menu -- why, and the fix?"	"Until the session restarts, XDG_DATA_DIRS doesn't include flatpak's exports
+dir, so flatpak apps don't show in the launcher (flatpak warns about this).
+Fix: log out and back in (or reboot). Meanwhile run it with:
+  flatpak run <app-id>"	"dev-env flatpak"
+"Flatpak: list what's installed, check an app's version, clean up unused runtimes?"	"flatpak list                 # installed apps + runtimes
+flatpak info <app-id>        # version / branch / commit / date
+flatpak uninstall <app-id>
+flatpak uninstall --unused   # remove runtimes nothing needs"	"dev-env flatpak"
+"Roblox on Linux -- the maintained method, and the one caveat?"	"Sober (a Flatpak, runs the Android Roblox client):
+  flatpak install flathub org.vinegarhq.Sober
+No native client; skip Grapejuice (old, deprecated Wine method).
+
+Caveat: Roblox is unofficial on Linux -- its anti-cheat (Hyperion) can break
+the client after a Roblox update until Sober patches it. If it won't launch:
+`flatpak update`, then check github.com/vinegarhq/sober releases/issues."	"dev-env flatpak roblox"

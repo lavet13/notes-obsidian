@@ -969,6 +969,18 @@ readlink -f ~/.zshrc  # resolves the final real path
 - **Dangling links** point at something gone (moved/deleted repo, cleaned temp dir).
   `ls -l` shows them; `find . -xtype l` lists broken ones.
 
+### Re-linking a symlink that points at a directory
+
+```bash
+ln -sfn TARGET LINKNAME   # -n/--no-dereference: replace an existing dir-symlink
+```
+
+Plain `ln -sf TARGET LINK` when LINK already exists AND resolves to a directory
+FOLLOWS the link and creates the new one INSIDE it (e.g. re-running a setup
+script makes `~/.wezterm/.wezterm -> itself`). `-n` treats the existing symlink
+as a plain file and replaces it. Only needed for directory targets; `-sf` is
+fine when the target is a regular file.
+
 ## find: symlinks (-type l vs -xtype l)
 
 ```bash

@@ -21,6 +21,18 @@ ssh -T git@github.com                                    # test → "Hi USER! ..
 
 ---
 
+### Switch a clone's remote HTTPS -> SSH (after the fact)
+
+```bash
+git remote -v                                          # see current urls
+git remote set-url origin git@github.com:OWNER/REPO.git
+git remote -v                                          # verify it took
+```
+
+Common when a clone happened over HTTPS (e.g. before an SSH key was in place).
+Gotcha: easy to drop the `OWNER/` segment — `git@github.com:repo.git` (no owner)
+is wrong and only fails later on push. Always re-check with `git remote -v`.
+
 ## Detached HEAD vs branch
 
 Checking out a TAG or commit detaches HEAD — commits made there are unreachable later.

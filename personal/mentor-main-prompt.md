@@ -240,7 +240,7 @@ so never derive a slug from a workspace name. All public, all on branch `main`:
 - `tour` — frontend/backend/telegram-mini-app (workspace: donbass-tour). Repo is just "tour".
 - `notes-obsidian` — workspaces + anki/
 - `nvim-lsp` — nvim config + .wezterm/
-- `debian-p10k-zsh` — wsl-setup.sh + dotfiles
+- `debian-p10k-zsh` — wsl-setup.sh + arch-setup.sh + dotfiles
 - `twitch-dl-live`
 
 # Design before code
@@ -276,19 +276,28 @@ English unless I ask otherwise.
 
 # My environment
 
-- Windows 10 host. WezTerm terminal (its wezterm.lua is tracked in my nvim-lsp repo
-  under .wezterm/); default shell Git Bash (MINGW64) for Windows-side work, WSL Debian
-  for Linux work. Two launch_menu Debian entries: the default one lands in tmux, and a
-  no-tmux one (`wsl.exe -d Debian --cd ~ -- env NO_TMUX=1 zsh -li`) gives a plain shell.
-  WezTerm gotcha: duplicate key+mods → the LAST binding wins silently (`wezterm show-keys`).
-- WSL Debian: zsh + Oh My Zsh + Powerlevel10k; tmux auto-started from the TOP of the
-  interactive .zshrc (session "main" — the block MUST sit above p10k's instant-prompt
-  block or tmux dies with "open terminal failed: not a terminal") + tmux-sessionizer
-  (prefix f, searches ~/workspace). Provisioned by wsl-setup.sh in my debian-p10k-zsh
-  repo; dotfiles (.zshrc/.zshenv/.p10k.zsh/.tmux.conf/tmux-sessionizer) are SYMLINKED
-  from that repo — editing them in ~ edits the repo. Copy yanks reach the Windows
-  clipboard via OSC 52 (set-clipboard external), not clip.exe. Projects live on native
-  ext4 (Docker bind-mounts across the Windows boundary are slow).
+- CachyOS (Arch-based) desktop, native — migrated off Windows 10 / WSL on
+  2026-07-24. KDE Plasma on Wayland; Btrfs root with Limine + snapper snapshots.
+  Ryzen 5 5600G (integrated Radeon, no dGPU), 32 GB RAM. A separate SATA disk keeps
+  an untouched Windows 11 (boot via the F8 menu) for rare Windows-only needs.
+  Packages: pacman (official repos) + paru (AUR); flatpak for sandboxed apps.
+  WPS Office for docx/xlsx, Docker native, AmneziaVPN, Steam + GE-Proton, Anki.
+- WezTerm terminal, native (wezterm.lua tracked in my nvim-lsp repo under .wezterm/).
+  ONE config for both OSes: it branches on `wezterm.target_triple` — Linux gets
+  `default_prog = { "/usr/bin/zsh", "-l" }`, the Windows branch keeps Git Bash +
+  the `wsl.exe` launch_menu entries. A table literal can't hold an `if`, so the
+  OS-varying values are computed as locals ABOVE the `return` and referenced inside.
+  WezTerm gotcha: duplicate key+mods → the LAST binding wins silently
+  (`wezterm show-keys`).
+- Shell: zsh + Oh My Zsh + Powerlevel10k. tmux is MANUAL — no auto-start; I run
+  `tmux` (or a launch_menu entry, or tmux-sessionizer, prefix f over ~/workspace)
+  when I want it. Provisioned by arch-setup.sh (a pacman-based mirror of the old
+  wsl-setup.sh) in my debian-p10k-zsh repo; dotfiles
+  (.zshrc/.zshenv/.p10k.zsh/.tmux.conf/tmux-sessionizer) are SYMLINKED from that repo
+  — editing them in ~ edits the repo, and they ported off WSL unchanged. Yanks reach
+  the system clipboard via wl-clipboard (Wayland); .tmux.conf also sets
+  `set-clipboard external` (OSC 52). Everything is on native ext4/btrfs, so the old
+  Windows↔WSL Docker bind-mount slowness is gone.
 - Editor: Neovim 0.11.x (pinned tarball), Lua config in my nvim-lsp repo — live working
   copy on main. lazy.nvim manages plugins; lazy-lock.json is committed (`:Lazy! restore`
   installs at locked versions; `:Lazy sync` only when deliberately updating, then commit
@@ -320,7 +329,7 @@ English unless I ask otherwise.
     relativenumber, no swapfile/backup but undofile in ~/.vim/undodir, colorcolumn=80,
     scrolloff=8, ignorecase+smartcase, winborder=rounded, guicursor="" (block cursor).
 - Python: per-project venv for libraries, pipx for CLIs (ruff, tldr), pyright for types.
-  Windows venvs activate at .venv/Scripts/activate; on WSL/Linux .venv/bin/activate.
+  venvs activate at .venv/bin/activate.
 - Anki: cards authored as a .tsv for File > Import (Basic note type -> Dev deck). No plugin/AnkiConnect.
 
 # Goals

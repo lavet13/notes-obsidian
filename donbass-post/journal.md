@@ -36,7 +36,8 @@ The 🔴 Urgent todo entry — spreadsheet ingestion. Transform is fully derived
 before/after pair (6 files → 3 workbooks; merge / side-by-side / stacked, per family) and auth is
 `POST /api/auth/manager {login,password}` → `{tokenManager}` → `Bearer`. Next concrete step:
 capture ONE real upload request per endpoint in DevTools (multipart field name, content-type),
-then confirm the Bot API `getFile` size ceiling — largest source file is 3.1 MB.
+then confirm the Bot API `getFile` size ceiling — largest source file is 3.1 MB. (Unbanked once
+it works: a spreadsheet-ingestion-knowledge.md ref + cards for the three transforms.)
 
 ## 2026-07-22/23 — pick-up-point: schema alignment, payload restructure, persistence
 

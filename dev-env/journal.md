@@ -7,6 +7,53 @@ tags: []
 
 # Journal
 
+## 2026-07-24 — Desktop migration: Windows 10/WSL -> native CachyOS
+
+**What we covered.** Debugged a flaky Windows desktop, then migrated it to
+native CachyOS (KDE Plasma / Wayland / Btrfs / Limine) and re-provisioned the
+whole dev environment.
+
+**Key insight (the real root cause).** Two DIFFERENT faults were tangled:
+- **Instant-off reboots** (Kernel-Power 41, `BugcheckCode 0` = power lost, no
+  crash caught) — traced to AMD **C-state / idle power** collapsing the PSU rail
+  at low load, NOT a dead PSU. Proven by: stress (MemTest, 68 min) stable but
+  idle dies; Windows High-Performance plan masked it; USB-boot (no OS tuning)
+  still died. Fixed in BIOS: **Global C-state Control = Disabled** (this AGESA
+  didn't expose Power Supply Idle Control). BIOS update 3002->3636 also helped.
+- **Freezes -> BSOD** — minidump showed `0x9F DRIVER_POWER_STATE_FAILURE`, a
+  Windows driver hanging on a power-state transition. Windows-specific; a fresh
+  Linux install sidesteps it. This was the actual reason Linux was worth doing.
+- Hardware verified sound before wiping: MemTest86 clean (1 full pass, DDR4-3200
+  = stock), PSU is a good Montech Century Gold 650W ~1yr old at ~20% load.
+
+**What we built/changed.**
+- `arch-setup.sh` in debian-p10k-zsh — a pacman-based mirror of `wsl-setup.sh`
+  (apt->pacman, NodeSource dropped, /mnt/c SSH copy -> restore-or-generate, native
+  docker, + wezterm-nightly/fonts/wl-clipboard/tree-sitter-cli/locale-gen).
+- `.zshrc`: dropped tmux auto-start — tmux is now manual (a launcher entry / run
+  `tmux`), which also killed the whole KDE `NO_TMUX` context-menu saga.
+- `wezterm.lua`: single file branches on `target_triple` (see wezterm-knowledge).
+- Dotfiles ported UNCHANGED (no /mnt/c, fdfind, clip.exe). Disks: wiped the 1 TB
+  NVMe, kept the 223 GiB SATA (Windows 11 + backups) untouched.
+- Office: WPS Office (+ ttf-wps-fonts) — ONLYOFFICE was laggy on the iGPU.
+
+**Findings about this machine.**
+- Ryzen 5 5600G APU (no dGPU) — "gaming" is light; AMD iGPU is great on Linux.
+- WPS short-date format is CELL-format driven, not locale; forced Russian via
+  `LANG`/`LC_TIME` on WPS's `.desktop` launchers.
+- Limine wants the ESP at `/boot` (not `/boot/efi`) and >= 4 GiB (it holds kernels).
+
+**Resume pointer / open threads.**
+1. THE test: use it a few days. If instant-offs return, the C-state fix didn't
+   hold -> reopen PSU (MemTest was clean, so RAM's ruled out).
+2. Run `arch-setup.sh` end-to-end on the next fresh box to shake out bugs (this
+   run hit: corepack is its own pkg; `ln -sfn` for the .wezterm dir link).
+3. Nice-to-haves: try Sway later (KDE is the fallback); WinPodX only if WPS falls
+   short for real Word/Excel.
+
+**Commits (already drafted):** nvim-lsp — `wezterm: branch shell config on
+target_triple`; debian-p10k-zsh — `add arch-setup.sh` + the tmux-manual `.zshrc`.
+
 ## 2026-07-03 - Networking fundamentals: subnetting, ARP, routing, NAT (on the VPS)
 
 Covered (concept -> key insight):

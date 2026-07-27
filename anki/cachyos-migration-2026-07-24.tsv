@@ -1,0 +1,107 @@
+#separator:Tab
+#html:false
+#notetype:Basic
+#deck:Dev
+#tags column:3
+"Arch: install a package, remove it (with orphaned deps), full system upgrade?"	"sudo pacman -S <pkg>       # install (from repos)
+sudo pacman -Rns <pkg>     # remove + orphaned deps + leftover config
+sudo pacman -Syu           # sync db + full upgrade (the apt update && upgrade)
+
+apt -> pacman: install=-S, remove=-R, update+upgrade=-Syu, search=-Ss"	"dev-env pacman"
+"pacman: force-remove a package ignoring dependency checks (e.g. swapping a conflicting build)?"	"sudo pacman -Rdd <pkg>
+
+-Rdd skips BOTH dep checks (won't complain that things need it) and
+removing deps. Use when replacing immediately, e.g. repo wezterm -> nightly:
+  sudo pacman -Rdd wezterm && paru -S wezterm-nightly-bin"	"dev-env pacman"
+"pacman: search repos, list installed matches, check one package is installed?"	"pacman -Ss <term>    # search available packages (repos only)
+pacman -Qs <term>    # search INSTALLED packages
+pacman -Q  <pkg>     # is exactly this installed? (exit 0 / prints version)
+
+Q = query local db, S = sync (remote) db."	"dev-env pacman"
+"pacman: stop a package from being upgraded (pin an old version)?"	"# /etc/pacman.conf, under [options]:
+IgnorePkg = amneziavpn-bin
+
+Syu then skips it. Space-separate multiple names, or list-line them."	"dev-env pacman"
+"What is the AUR, and how does an AUR install differ from a repo package?"	"AUR = Arch User Repository: community BUILD RECIPES (PKGBUILD), not prebuilt
+binaries. A helper (paru) downloads the PKGBUILD, builds locally, hands the
+result to pacman. Repo packages are prebuilt + signed.
+
+Because recipes are user-submitted, paru shows you the PKGBUILD to REVIEW
+before building -- that's the security step, not ceremony. `-bin` packages
+just fetch the upstream binary, so their PKGBUILD is short."	"dev-env paru aur"
+"paru -Ss vs pacman -Ss? And where does paru come from on CachyOS?"	"paru -Ss <term>   # searches official repos AND the AUR
+pacman -Ss <term> # official repos only
+
+paru is an AUR HELPER (wrapper around pacman). On CachyOS it's in the repos:
+  sudo pacman -S paru
+(yay is an equivalent alternative.)"	"dev-env paru"
+"Downgrade an AUR package to a specific older version?"	"paru --getpkgbuild <pkg>   # clones the recipe into ./<pkg>
+cd <pkg>
+# edit PKGBUILD: pkgver=<old>  (and any hardcoded version in source=())
+sudo pacman -S --needed pacman-contrib   # provides updpkgsums
+updpkgsums                 # recompute checksums for the new file
+makepkg -si                # build + install
+# then pin it so -Syu won't bump it: IgnorePkg in /etc/pacman.conf"	"dev-env aur"
+"pacman/paru: a prompt says 'There are N providers available for X' — what do you pick?"	"It's asking which repo to pull a shared dependency from. The providers are
+equivalent -- press the default (1) or Enter. Not a real decision."	"dev-env pacman"
+"systemd: enable a service AND start it now, then check it?"	"sudo systemctl enable --now <name>   # start now + start at every boot
+systemctl status <name>              # active? logs? PID?
+sudo systemctl disable --now <name>  # stop now + don't start at boot
+
+Without --now, enable only affects FUTURE boots."	"dev-env systemd"
+"systemctl status shows 'Loaded: ... enabled; preset: disabled' -- what does that mean?"	"enabled  = the CURRENT state you set (will start at boot).
+preset   = the DISTRO DEFAULT for this unit (here: off).
+Your explicit enable overrides the preset. So this line = 'I turned it on;
+the distro would have left it off.' Not a conflict."	"dev-env systemd"
+"Arch: generate a locale like en_US.UTF-8 (there's no locales-all package)?"	"# uncomment the line in /etc/locale.gen, then generate:
+sudo sed -i 's/^#\(en_US.UTF-8 UTF-8\)/\1/' /etc/locale.gen
+sudo locale-gen
+
+check with:  locale -a | grep -i en_US
+KDE's Region KCM can't auto-generate on Arch -- this is the manual route."	"dev-env locale"
+"KDE: set the default terminal emulator from the CLI and apply it?"	"kwriteconfig6 --file kdeglobals --group General --key TerminalApplication wezterm-here.desktop
+kbuildsycoca6                # rebuild the desktop/service cache so KDE sees it
+kreadconfig6 --file kdeglobals --group General --key TerminalApplication  # verify
+
+Value is the .desktop FILENAME (resolved from ~/.local/share/applications),
+not a raw command. Swapping terminals in the GUI can reset it to a bare
+command string -- re-set via CLI if that happens."	"dev-env kde"
+"A .desktop launcher for a terminal: which Terminal= value, and what is %f?"	"Terminal=false   # the app IS a terminal; Terminal=true makes KDE launch it
+                 # INSIDE another terminal and can swallow your Exec args.
+Exec=wezterm start --cwd %f   # %f = the folder KDE passes ('Open Terminal Here')
+
+Duplicate Exec= lines -> parser uses the first and behaviour is undefined:
+keep exactly one."	"dev-env kde"
+"Relink a symlink that points at a DIRECTORY without nesting the new link inside it?"	"ln -sfn TARGET LINKNAME
+
+-n / --no-dereference: treat an existing symlink-to-dir as a plain file and
+REPLACE it. Plain `ln -sf` FOLLOWS the existing link and creates the new one
+INSIDE the target dir (e.g. ~/.wezterm/.wezterm -> itself). -n only needed
+when the target is a directory; -sf is fine for a file target."	"dev-env symlinks"
+"Switch a cloned repo's remote from HTTPS to SSH (so pushes use your key)?"	"git remote -v                       # see current urls
+git remote set-url origin git@github.com:OWNER/REPO.git
+
+Gotcha: it's easy to drop the OWNER/ segment -- github.com:repo.git (no owner)
+is wrong. Verify with `git remote -v`, confirm with `git fetch`."	"dev-env git"
+"SSH: correct permissions for ~/.ssh and its files (e.g. after copying keys off NTFS)?"	"chmod 700 ~/.ssh
+find ~/.ssh -type f -exec chmod 600 {} +                                  # lock ALL first (safe for any private key)
+find ~/.ssh -type f \( -name '*.pub' -o -name 'known_hosts*' \) -exec chmod 644 {} +  # relax non-secrets
+
+NTFS has no unix perms -> everything copies as 0755 -> 'bad permissions,
+key ignored'. Private keys MUST be 600, the dir 700."	"dev-env ssh"
+"WezTerm: one config file for BOTH Windows and Linux -- how to branch on OS?"	"local is_windows = wezterm.target_triple:find(""windows"") ~= nil
+
+-- a table literal can't hold an `if`, so compute the OS-varying values as
+-- locals ABOVE the return, then reference them inside the table:
+local default_prog, launch_menu
+if is_windows then default_prog = { ""...bash.exe"" } ; launch_menu = {...}
+else                default_prog = { ""/usr/bin/zsh"", ""-l"" } ; launch_menu = {...} end
+return { default_prog = default_prog, launch_menu = launch_menu, --[[...]] }"	"dev-env wezterm"
+"AMD Ryzen desktop: random INSTANT-OFF reboots at idle, no blue screen (Kernel-Power 41, BugcheckCode 0). BIOS fix?"	"Deep CPU C-states drop power draw so low the PSU can't hold the rail at idle
+-> instant power loss, nothing logged. It is NOT necessarily a dead PSU
+(stress-testing stays stable; idle dies).
+
+BIOS -> Advanced -> AMD CBS:
+  Global C-state Control        = Disabled   (the reliable one)
+  Power Supply Idle Control     = Typical Current Idle   (if the AGESA exposes it)
+Windows stopgap: High Performance plan + disable sleep."	"dev-env hardware amd"

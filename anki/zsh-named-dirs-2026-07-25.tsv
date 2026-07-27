@@ -1,0 +1,18 @@
+#separator:Tab
+#html:false
+#notetype:Basic
+#deck:Dev
+#tags column:3
+"zsh: give a directory a short name usable ANYWHERE a path is (not just cd)?"	"hash -d notes=~/notes      # define: name -> path
+cd ~notes                  # jump there
+nvim ~notes/todo.md        # works mid-path, tab-completes, prompt shows ~notes
+
+Put the `hash -d` lines in .zshrc (ordering vs p10k instant-prompt doesn't
+matter). It's a named directory -- works everywhere a path is expected, unlike
+a cd-alias."	"dev-env zsh"
+"Why use `hash -d name=~/dir` instead of `alias name='~/dir'` (or 'cd ~/dir')?"	"An alias that's JUST a path (alias notes='~/notes') doesn't cd -- the shell
+tries to EXECUTE the directory (error). `hash -d` is the right tool:
+- expands as a path fragment too:  ~work/sub/file  (a cd-alias can't)
+- p10k/prompt collapses the real path to ~notes (short prompt)
+- tab-completes after ~name
+Gotcha: the form is ~name (tilde-prefixed). `cd notes` still fails; `cd ~notes`."	"dev-env zsh"
