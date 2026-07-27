@@ -1,0 +1,20 @@
+#separator:Tab
+#html:false
+#notetype:Basic
+#deck:Dev
+#tags column:3
+"In software/automation, what does ""headless"" mean?"	"Runs with no display and no human driving a UI — a cron job, a server script, a bot handler. Nobody clicks anything; it runs unattended, server-side."	"dev-env integration headless"
+"Two ways to run headless against a remote site — what are they, and what forces the choice?"	"headless HTTP client (just `fetch`) vs headless browser (Playwright/Puppeteer, a real Chromium with no window).
+
+The SITE'S AUTH mechanism forces the choice, not the task:
+- documented login endpoint returning a token -> fetch
+- only a browser session cookie (login is a form POST, no API) -> headless browser (or a human pasting cookies)"	"dev-env integration headless"
+"When are you FORCED into a headless browser instead of plain fetch?"	"Only when the site has no usable API — you must automate typing into the login form, keep the session cookie it sets, and re-script when the HTML shifts.
+
+Costs: a browser binary in your image, brittleness against markup changes, lots of surface to break. Avoid unless auth leaves no choice."	"dev-env integration headless"
+"Before automating against an external site, what do you find FIRST, and why?"	"The AUTH mechanism — it dictates the whole architecture downstream.
+
+A documented login endpoint returning a token means a plain fetch on a server (cheap, robust, unattended). A browser-session-cookie-only login means a headless browser or manual cookie pasting — barely better than doing it by hand.
+
+Real case: discovering POST /api/auth/manager -> {tokenManager} -> Bearer collapsed the donbass-post upload job from ""maybe needs a headless browser"" to ""a plain fetch""."	"dev-env integration auth"
+"For an unattended job using a token, how do you handle the token?"	"Credentials in env, never in the repo. Until you've measured the token's lifetime, fetch a fresh one PER RUN rather than caching — a cached token that silently expires fails the job at the worst time. A 401 mid-run means re-auth, not retry-the-same-token."	"dev-env integration auth"
