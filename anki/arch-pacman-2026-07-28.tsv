@@ -1,0 +1,52 @@
+#separator:Tab
+#html:false
+#notetype:Basic
+#deck:Dev
+#tags column:3
+"pacman: in `-Syu`, what do `y` and `u` do — and why never `-Sy` alone?"	"y = refresh the local copy of the package DATABASES from the mirror (like apt update's index fetch).
+u = upgrade every installed pkg now out of date vs those dbs.
+
+-Sy ALONE (refresh dbs, upgrade nothing / one pkg) = a partial upgrade. Arch builds every pkg against the CURRENT versions of the rest, so mixing a fresh pkg onto a stale system breaks library sonames. Rule: always -Syu, never a lone -Sy."	"dev-env pacman flags"
+"pacman `-Syy` vs `-Sy` — what's the extra `y` for?"	"-Syy force-redownloads the package DATABASES even when they look current. Needed only right after switching/re-ranking mirrors (rate-mirrors / reflector), where a new mirror serves dbs pacman thinks are identical. Still pair it with u: -Syyu."	"dev-env pacman flags"
+"pacman `-Rns` — what do `n` and `s` mean?"	"R = remove.
+s = recursive: also remove dependencies nothing else still needs.
+n = nosave: delete the pkg's own config files too, instead of keeping them as *.pacsave.
+
+Reverse: sudo pacman -S <pkg> reinstalls it."	"dev-env pacman flags"
+"pacman `-Rdd` — what does the double `d` do?"	"d = nodeps: skip dependency VERSION checks. dd = skip dependency checks ENTIRELY, including the 'but X requires this' guard. Only for a deliberate conflict swap, e.g.:
+  sudo pacman -Rdd wezterm && paru -S wezterm-nightly-bin"	"dev-env pacman flags"
+"pacman `-S --needed` — what does `--needed` do?"	"Skip packages already at the current version instead of reinstalling them. Makes `-S` idempotent (safe to re-run in setup scripts). Without it, `pacman -S foo` re-fetches and reinstalls foo even when unchanged."	"dev-env pacman flags"
+"makepkg `-si` — what do `-s` and `-i` do?"	"Run in a dir containing a PKGBUILD:
+ s = syncdeps: pacman-install any missing build/runtime deps first.
+ i = install the finished package after a successful build.
+You run makepkg by hand only for a manual/edited PKGBUILD (e.g. the AUR downgrade recipe); paru does -si for you."	"dev-env pacman aur"
+"Arch: remove orphan packages (installed as deps, now required by nothing)"	"List:   pacman -Qdtq        (Q query, d installed-as-dependency, t required-by-nothing, q names-only)
+Remove: sudo pacman -Rns $(pacman -Qdtq)
+
+Reverse: save the list FIRST so you can undo —
+  pacman -Qdtq > /tmp/orphans.txt
+  sudo pacman -Rns $(cat /tmp/orphans.txt)
+  # to restore: sudo pacman -S $(cat /tmp/orphans.txt)"	"dev-env pacman maintenance"
+"Arch: pacman cache never self-clears — reclaim space without losing rollback?"	"/var/cache/pacman/pkg/ grows forever. Use paccache (from pacman-contrib):
+  paccache -rk2      # keep latest 2 of each pkg, delete the rest
+AVOID pacman -Scc — it deletes ALL cached packages, which is your only offline downgrade path (pacman -U /var/cache/pacman/pkg/<old>). One-way."	"dev-env pacman maintenance"
+"Arch: 'unable to lock database' / db.lck — cause and fix?"	"A pacman run was killed and left /var/lib/pacman/db.lck behind, blocking every future run.
+Fix: sudo rm /var/lib/pacman/db.lck
+ONLY after confirming nothing is running: pgrep -a pacman must be empty."	"dev-env pacman maintenance"
+"Arch: what is a `.pacnew` file and what must I do with it?"	"When an update ships a new default for a config file you've edited, pacman writes <config>.pacnew BESIDE yours instead of overwriting it — then it's on you to merge, or you silently run stale config.
+Find: find /etc -name '*.pacnew'
+Merge: pacdiff (pacman-contrib). Back up your version (cp foo foo.bak) before accepting the .pacnew, so you can restore."	"dev-env pacman maintenance"
+"Arch: `-Syu` fails on signature / keyring errors after a long gap — fix?"	"The keyring went stale. Refresh it first, then upgrade:
+  sudo pacman -Sy archlinux-keyring cachyos-keyring
+  sudo pacman -Su"	"dev-env pacman maintenance"
+"pacman queries: which package owns a file? what files did a package install?"	"pacman -Qo <file>   # which installed pkg OWNS this file
+pacman -Ql <pkg>    # LIST every file that pkg installed
+pacman -Qi <pkg>    # info (deps, size, install date)"	"dev-env pacman query"
+"pacman: list only the packages I explicitly chose to install (the leaf list)?"	"pacman -Qet
+  Q query, e explicitly-installed, t not-required-by-anything.
+Great for auditing 'what did I actually add' vs pulled-in deps."	"dev-env pacman query"
+"Arch: update a package that's pinned via IgnorePkg — without unpinning it permanently?"	"Target it explicitly: paru -S <pkg>  (or pacman -S <pkg>).
+pacman still sees it in IgnorePkg and PROMPTS '...install anyway? [Y/n]' — press Y. Overrides the ignore for THIS run only; the IgnorePkg line stays for future -Syu.
+A pkg upgrade replaces files under /usr,/opt — it never touches your $HOME config."	"dev-env pacman aur"
+"What does SDDM stand for, and what's replacing it on KDE?"	"SDDM = Simple Desktop Display Manager (the QML X11/Wayland login manager KDE has used).
+Being replaced by plasmalogin (Plasma Login Manager, PLM) from Plasma 6.6 — a stripped-down continuation of SDDM with deeper Plasma integration. Both read session .desktop files from /usr/share/wayland-sessions/ (and /usr/share/xsessions/)."	"dev-env kde"

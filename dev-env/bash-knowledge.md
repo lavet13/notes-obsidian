@@ -821,7 +821,7 @@ explicit start path (defaults to cwd) and matches everything.
 **Unanchored** = matches if it appears ANYWHERE (a substring is enough).
 Globs are anchored by default; regex is unanchored by default (`^`/`$` are literally "anchors").
 
-````bash
+```bash
 touch log log.txt mylog
 # GLOB is anchored: -name compares against the ENTIRE basename
 find . -name 'log'    # ./log ONLY — "log.txt"/"mylog" fail (chars hang outside the match)
@@ -831,23 +831,40 @@ find . -name '*log*'  # log, log.txt, mylog — you manually UN-anchored both en
 # REGEX is unanchored: matches if it appears anywhere
 printf 'log\nlog.txt\nmylog\n' | grep -E 'log'    # all three (substring is enough)
 printf 'log\nlog.txt\nmylog\n' | grep -E '^log$'  # log only — ^ pins start, $ pins end
-````
+```
 
 > Mental model: glob = anchored by default, WIDEN with `*`. regex = unanchored by default,
 > PIN with `^ … $`. Same goal, opposite starting points.
 
-### `sed` delimiter swap + `tar` stdin (two small idioms)
-
+### `sed` delimiter swap
 ````bash
 sed 's|^\./||'   # `s` takes ANY delimiter after it. Pattern has a slash (./), so use | instead
                  # of / to avoid escaping: s/^\.\/// is the ugly equivalent. ^ = line start,
                  # \. = literal dot, / = literal (no escape — | is the delimiter). Strips "./".
-
-curl … | tar xz -C dir   # no -f → tar reads the archive from STDIN (the pipe). -f FILE reads a
-                         # file; `-f -` is the explicit stdin form. -C = cd into dir first.
 ````
 
 ---
+
+```bash
+## `tar` create side — `-f` is the OUTPUT path, `-C DIR .` is the INPUT
+# (complements the read-side idiom above: `curl … | tar xz -C dir`)
+# On CREATE, one command does two INDEPENDENT jobs:
+tar czf /backup/vol.tar.gz -C /v .
+#       └──────┬─────────┘  └─┬┘ │
+#              │              │  └ operand = WHAT to pack, resolved AFTER -C → "/v's contents"
+#              │              └ -C: chdir into /v before reading operands
+#              └ -f = WHERE the archive is written. ABSOLUTE → unaffected by -C or pwd.
+#
+# The `.` is the INPUT, not the output. The destination is fixed by -f. It's easy to misread
+# `.` as "create it in the current dir" — it isn't; it's "pack the current dir".
+#
+# Why `-C /v .` instead of `tar czf out.tgz /v`? It changes the MEMBER PATHS recorded inside:
+tar czf a.tgz /v      ; tar tzf a.tgz   # → v/  v/data/…   (leading v/ baked in; GNU also warns
+                                        #   "Removing leading '/'" for absolute operands)
+tar czf b.tgz -C /v . ; tar tzf b.tgz   # → ./  ./data/…   (relative to /v)
+# Restore symmetry: `tar xzf b.tgz -C /v` drops ./data/… straight into /v (correct).
+#   The a.tgz form would restore to /v/v/data/… — wrong.
+```
 
 ## rm: -f vs -r
 
@@ -871,6 +888,34 @@ cp -n ...             # DEPRECATED on GNU; Debian prints a non-portability warni
 cp -r src/. dst/      # the /. = "contents of src, hidden files included"
 cp -rT src dst        # -T / --no-target-directory: same effect, self-documenting
 # (cp -r src dst when dst exists → nests as dst/src; src/* misses dotfiles)
+```
+
+---
+
+## `tar` — `-f` = archive path, `-C DIR .` = what to pack
+
+```bash
+# ── CREATE: two INDEPENDENT jobs in one command ──────────────────────────────
+tar czf /backup/vol.tar.gz -C /v .
+#       └──────┬─────────┘  └─┬┘ │
+#              │              │  └ operand = WHAT to pack, resolved AFTER -C → "/v's contents"
+#              │              └ -C: chdir into /v before reading operands
+#              └ -f = WHERE the archive is written. ABSOLUTE → unaffected by -C or pwd.
+#
+# The `.` is the INPUT, not the output. Destination is fixed by -f. Easy to misread `.`
+# as "make it in the current dir" — it isn't; it's "pack the current dir".
+#
+# Why `-C /v .` and not `tar czf out.tgz /v`? It changes the MEMBER PATHS recorded inside:
+tar czf a.tgz /v      ; tar tzf a.tgz   # → v/  v/data/…  (leading v/ baked in; GNU also warns
+                                        #   "Removing leading '/'" for absolute operands)
+tar czf b.tgz -C /v . ; tar tzf b.tgz   # → ./  ./data/…  (relative to /v)
+# Restore symmetry: `tar xzf b.tgz -C /v` drops ./data/… straight into /v (correct).
+#   The a.tgz form would restore to /v/v/data/… — wrong.
+#
+# ── READ (extract): -f says WHERE to read the archive FROM ────────────────────
+tar xzf archive.tgz -C dir   # -f FILE → read that file;  -C dir → cd into dir first
+curl … | tar xz -C dir       # NO -f → read the archive from STDIN (the pipe)
+tar xz -f - -C dir           # `-f -` = the explicit stdin form (identical to no -f)
 ```
 
 ---
@@ -1097,22 +1142,29 @@ ls -l ~/.ssh                    # keys present? (id_ed25519 + id_ed25519.pub)
 Common causes & fixes:
 
 1. **Wrong permissions** — ssh ignores keys that are too open.
+
 ```bash
    chmod 700 ~/.ssh
    chmod 600 ~/.ssh/id_ed25519        # private key: owner-only
    chmod 644 ~/.ssh/id_ed25519.pub    # public key
 ```
+
 2. **Key not registered on GitHub** — copy the PUBLIC key and add it at
    github.com → Settings → SSH and GPG keys:
+
 ```bash
    cat ~/.ssh/id_ed25519.pub          # paste this (the .pub, never the private one)
 ```
+
 3. **Agent doesn't have the key loaded** (or a non-default filename):
+
 ```bash
    eval "$(ssh-agent -s)" && ssh-add ~/.ssh/id_ed25519
 ```
+
 4. **Remote is HTTPS, not SSH** — `git push` then asks for a password, which GitHub
    removed in 2021. Switch the remote to SSH:
+
 ```bash
    git remote -v                                         # check current URL
    git remote set-url origin git@github.com:USER/REPO.git

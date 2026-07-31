@@ -1,0 +1,51 @@
+#separator:Tab
+#html:false
+#notetype:Basic
+#deck:Dev
+#tags column:3
+"Docker: what is a *dangling* image?"	"An image layer with no tag, shown as <none>:<none>. It appears when you rebuild an image reusing the same tag: the tag moves to the NEW build, the old layers are left untagged = dangling.
+
+`docker image prune` (no -a) removes exactly these."	"dev-env docker images"
+"Docker: `docker image prune` vs `docker image prune -a`?"	"prune      = DANGLING images only (untagged <none>:<none>).
+prune -a   = ALL images not referenced by any container (tagged ones included)."	"dev-env docker images prune"
+"Docker: does `docker image prune -a` delete an image a container uses?"	"No. Any container reference protects the image — running OR stopped. Only images with zero container references are removed. (New CLI marks these 'In Use / U'.)"	"dev-env docker images prune"
+"Docker: what is an 'unused volume' (prune target)?"	"A volume referenced by NO container at prune time.
+
+Gotcha: `docker compose down` (without -v) removes containers but KEEPS named volumes -> they become unused -> `docker volume prune -a` will then delete them."	"dev-env docker volumes prune"
+"Docker: `docker volume prune` default vs `-a`?"	"default = only ANONYMOUS unused volumes.
+-a      = also NAMED unused volumes (the dangerous one — eats DB volumes)."	"dev-env docker volumes prune"
+"Docker: does `docker system prune --volumes` remove NAMED volumes?"	"No. It only removes ANONYMOUS unused volumes. Named unused volumes survive it entirely — you need `docker volume prune -a` for those."	"dev-env docker prune volumes"
+"Docker: back up (and restore) a named volume to a tarball"	"# BACKUP: ephemeral alpine, volume read-only at /v, host cwd at /backup
+docker run --rm -v <vol>:/v:ro -v ""$PWD"":/backup \
+  alpine tar czf /backup/<vol>.tar.gz -C /v .
+
+# RESTORE (reverse): volume writable, untar back in
+docker run --rm -v <vol>:/v -v ""$PWD"":/backup \
+  alpine sh -c 'tar xzf /backup/<vol>.tar.gz -C /v'"	"dev-env docker volumes backup"
+"Docker: why doesn't the `--rm` backup helper orphan the volume?"	"Because the REAL owner container references the volume the whole time. The helper just adds a temporary 2nd link (LINKS 1->2); on exit --rm drops it back to 1. A volume is only a prune target when NO container references it."	"dev-env docker volumes backup"
+"Docker: for a LIVE database, why not tar the volume?"	"A running DB has buffered/in-flight writes, so a file-level tar can be torn and inconsistent. Use a LOGICAL dump (transaction-consistent), or stop the container first.
+
+# postgres (all DBs + roles):
+docker exec -t <pg> pg_dumpall -U postgres > dump-$(date +%F).sql
+# mysql (avoid inline -p<pw>, it leaks to ps/history):
+docker exec -e MYSQL_PWD=<pw> <mysql> mysqldump -u root <db> > db-$(date +%F).sql"	"dev-env docker volumes backup"
+"Docker: new `docker images` columns DISK USAGE vs CONTENT SIZE?"	"containerd image store output.
+DISK USAGE   = unpacked size on disk (what occupies /var/lib/docker).
+CONTENT SIZE = compressed blob size in the content store (~ download size).
+IN USE (U)   = referenced by a container.
+`docker image ls --tree` shows per-platform variants; 0B rows = platforms not pulled."	"dev-env docker images disk"
+"Docker: why is `du /var/lib/docker` smaller than the sum of image sizes?"	"Docker reports LOGICAL sizes; `du` reports PHYSICAL blocks. On btrfs+zstd (CachyOS default) physical < logical. NOT shared-layer inflation if SHARED SIZE=0.
+
+Confirm: findmnt -no FSTYPE,OPTIONS -T /var/lib/docker  (look for compress=zstd)
+         sudo compsize /var/lib/docker                   (exact ratio, ~1.4x at zstd:1)"	"dev-env docker disk"
+"Docker: how to untag / retag an image?"	"docker tag SRC NEW        # add a tag (an image can have many)
+docker rmi NAME:TAG       # remove THAT tag; if other refs remain the image stays (just untagged), else it's deleted
+There is no dedicated `docker untag` verb."	"dev-env docker images"
+"Docker: fix the legacy-builder deprecation warning?"	"Install buildx so BuildKit becomes the default builder.
+Arch/CachyOS:  sudo pacman -S docker-buildx
+(reverse: sudo pacman -R docker-buildx). Then `docker build` uses BuildKit and the DEPRECATED notice goes away."	"dev-env docker buildx"
+"Docker: in the volume-backup `tar`, what does `-C /v .` do (and where is the archive written)?"	"Two independent jobs:
+- WHERE it's written: `-f /backup/x.tar.gz` (ABSOLUTE) — unaffected by -C or pwd.
+- WHAT is packed: `-C /v` chdirs into /v, then `.` = its contents. `.` is the INPUT, not the output.
+
+`-C /v .` records members as ./file (relative to /v), so `tar x -C /v` restores into the volume root. Plain `tar ... /v` records v/file -> restores to /v/v/file (wrong); GNU tar also warns ""Removing leading '/'""."	"dev-env bash tar"

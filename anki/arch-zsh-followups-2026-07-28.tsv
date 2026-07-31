@@ -1,0 +1,23 @@
+#separator:Tab
+#html:false
+#notetype:Basic
+#deck:Dev
+#tags column:3
+"pacman: `-d` under `-R` vs under `-Q` — same letter, what two meanings?"	"Meaning is scoped to the OPERATION letter:
+-R (remove): -d = --nodeps → SKIP dependency checks (-dd skips them all, incl. 'X requires this').
+-Q (query):  -d = --deps   → FILTER to packages installed AS a dependency.
+So -Qdt = dep-installed AND required-by-nothing = an orphan."	"dev-env pacman flags"
+"pacman: what does `-q` / `--quiet` do, and why is it in `pacman -Qdtq`?"	"Outputs bare package NAMES only (no version column). Required when the result is piped into another pacman call, which wants names, not 'name version':
+  pacman -Qdt  → litehtml0.9 0.9-2.1
+  pacman -Qdtq → litehtml0.9
+  sudo pacman -Rns $(pacman -Qdtq)
+Also works on -Ss / -Qs."	"dev-env pacman flags"
+"Arch/KDE: flash a distro ISO to USB without balena-etcher?"	"balena-etcher (AUR) builds electron+rust from source and its deps conflict (two nodejs LTS lines) — skip it.
+  sudo pacman -S --needed isoimagewriter   # native KDE, light, in repos
+Or the official Etcher .AppImage (verify-after-write, no build).
+Distro-hopping? ventoy-bin: flash the stick ONCE, drop many .iso files, boot-menu picks."	"dev-env arch usb"
+"zsh: check ~/.zshrc for errors without executing it?"	"zsh -n ~/.zshrc   (-n = no-exec: parse, report SYNTAX errors, run nothing)
+zsh -il -c exit   (load a real login shell → runtime errors too)
+Catches static/syntax only, NOT logic errors: `hash -d video=~/yt/video` with a wrong path is valid syntax, passes -n clean, and only fails at use (cd ~video)."	"dev-env zsh"
+"paru: remove leftover AUR build files / clones?"	"paru -c   → removes untracked build dirs + sources under ~/.cache/paru/clone (regenerable, safe). Separate from the repo cache (/var/cache/pacman/pkg = paccache's job)."	"dev-env pacman aur"
+"pacman: does a build that fails at 'checking conflicts' leave packages installed?"	"No. Transactions are atomic. 'failed to prepare transaction (conflicting dependencies)' happens during PREPARE, before any file is written — system unchanged. Verify: pacman -Qq <pkg> → 'not found'. Then paru -c to clear build clones."	"dev-env pacman"

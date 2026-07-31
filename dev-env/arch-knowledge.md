@@ -153,3 +153,164 @@ Gotchas:
   codecs — ~1 GB); later flatpaks reuse them, so it's a one-time cost.
 - A broken flatpak app (e.g. Sober after a Roblox update): `flatpak update` it,
   then `flatpak info` its version and compare to the upstream releases/issues.
+
+## pacman — flag anatomy (every letter is one switch)
+
+Combined flags stack in any order; each letter is independent.
+
+```bash
+# -S  sync: act on REMOTE repos
+#   y   refresh the LOCAL copy of the package DATABASES from the mirror
+#       (the `apt update` index-fetch half)
+#   u   upgrade every installed pkg now out of date vs those dbs
+#   → -Syu = refresh THEN upgrade = the one true update command
+#   --needed  skip pkgs already current (don't reinstall) → makes -S idempotent,
+#             which is why setup scripts use it: pacman -S --needed flatpak
+#
+# -R  remove
+#   s   recursive: also remove deps nothing else needs
+#   n   nosave: delete the pkg's config files too (else kept as *.pacsave)
+#   d   nodeps (version checks); -dd skips dep checks ENTIRELY, incl.
+#       "but X requires this" — deliberate conflict swap only:
+#       sudo pacman -Rdd wezterm && paru -S wezterm-nightly-bin
+#
+# -Q  query the LOCAL db (installed pkgs):
+#   s search  i info  o owns-file  l list-files
+#   e explicitly-installed  d installed-as-dep  t required-by-nothing
+
+makepkg -si   # in a dir with a PKGBUILD (manual/edited recipe; paru does this for you)
+#   -s  syncdeps: pacman-install missing build/runtime deps first
+#   -i  install the built package afterward
+```
+
+Reverse of any install is removal: `sudo pacman -S <pkg>` ↔ `sudo pacman -Rns <pkg>`.
+
+## The partial-upgrade footgun — never `-Sy` alone
+
+```bash
+# NEVER: sudo pacman -Sy <pkg>   (refresh dbs, upgrade only one thing)
+```
+Arch has no stable snapshot — every package is built against the CURRENT version
+of every other. Pull one fresh package onto an otherwise-stale system and you get
+a *partial upgrade*: mismatched library sonames, things segfault. Always refresh
+and upgrade together: `-Syu`.
+
+`-Syy` (double y) force-redownloads the dbs even if they look current — needed
+ONLY right after switching/re-ranking mirrors (`/etc/pacman.d/mirrorlist`, via
+`rate-mirrors` on CachyOS or `reflector` on Arch), where a new mirror serves dbs
+pacman thinks are identical. Still pair with u: `-Syyu`.
+
+## Overriding IgnorePkg — updating a pinned package anyway
+
+An `IgnorePkg` line (see Pinning) makes `-Syu` skip that package — you'll see
+`[ignored]` / `[игнорировано]` in the update output. To update it once WITHOUT
+unpinning permanently, name it explicitly:
+
+```bash
+paru -S amneziavpn-bin
+# pacman still sees IgnorePkg and PROMPTS: "...install anyway? [Y/n]" → Y.
+# Overrides the ignore for THIS run only; the IgnorePkg line stays.
+```
+
+A package upgrade replaces files under `/usr` and `/opt` — it never touches your
+`$HOME` config. But a MAJOR bump can migrate the config format on first launch
+(one-way), so back up first:
+
+```bash
+cp -r ~/.config/AmneziaVPN ~/AmneziaVPN.config.bak    # BACK UP (find real path first)
+# reverse: rm -rf ~/.config/AmneziaVPN && mv ~/AmneziaVPN.config.bak ~/.config/AmneziaVPN
+#          then downgrade the pkg via the Downgrading recipe above
+```
+
+## Routine maintenance (each with its reverse)
+
+```bash
+# Orphans — deps left behind, now required by nothing:
+pacman -Qdtq                                  # list (review before removing!)
+pacman -Qdtq > /tmp/orphans.txt               # save the list = your undo
+sudo pacman -Rns $(cat /tmp/orphans.txt)      # remove
+# reverse: sudo pacman -S $(cat /tmp/orphans.txt)
+
+# Cache never self-clears (/var/cache/pacman/pkg grows forever):
+paccache -rk2          # keep latest 2 of each, delete the rest (pacman-contrib)
+# do NOT use `pacman -Scc` — deletes ALL cached pkgs = kills offline downgrade,
+# which is: sudo pacman -U /var/cache/pacman/pkg/<pkg>-<oldver>.pkg.tar.zst
+
+# Stale lock ("unable to lock database") — a killed pacman left db.lck:
+pgrep -a pacman                               # MUST be empty first
+sudo rm /var/lib/pacman/db.lck                # then remove; recreated next run
+
+# .pacnew — update shipped a new default for a config you edited; pacman writes
+# <config>.pacnew beside yours instead of clobbering. Merge or drift silently:
+find /etc -name '*.pacnew'                     # locate
+sudo pacdiff                                   # interactive merge (pacman-contrib)
+# reverse: cp foo foo.bak BEFORE accepting a .pacnew, so you can restore
+
+# Keyring stale (signature errors on -Syu after a long gap):
+sudo pacman -Sy archlinux-keyring cachyos-keyring && sudo pacman -Su
+```
+
+## Handy query verbs
+
+```bash
+pacman -Qo <file>   # which installed pkg OWNS this file
+pacman -Ql <pkg>    # LIST every file that pkg installed
+pacman -Qi <pkg>    # info: deps, size, install date
+pacman -Qet         # only what I EXPLICITLY installed and nothing needs
+                    #   (my real "what did I add" list)
+```
+
+## Login manager: SDDM → plasmalogin (KDE)
+
+CachyOS KDE now uses **plasmalogin** (Plasma Login Manager), not SDDM (Simple
+Desktop Display Manager). It's a stripped-down continuation of SDDM shipping with
+Plasma 6.6. Session picker reads the same dirs, so adding Sway still works:
+
+```bash
+systemctl status display-manager      # confirms plasmalogin.service here
+ls /usr/share/wayland-sessions/        # a sway.desktop here appears in the picker
+```
+
+## pacman flags — `-d` and `-q` demystified
+
+`-d`'s meaning depends on the OPERATION letter it rides with — same letter, two jobs:
+- under -R (remove): `-d` = --nodeps → SKIP dependency checks (-dd skips them all,
+  incl. "but X requires this")
+- under -Q (query):  `-d` = --deps   → FILTER to pkgs installed AS a dependency
+So -Rdd (suppress dep logic) and -Qdt (dep-installed AND required-by-nothing = an
+orphan) share the letter but not the meaning.
+
+`-q` = --quiet: output bare NAMES only, no version column. Needed whenever the result
+is piped into another pacman call, which wants names, not "name version":
+
+    pacman -Qdt   → litehtml0.9 0.9-2.1      (name + version)
+    pacman -Qdtq  → litehtml0.9              (name only)
+    sudo pacman -Rns $(pacman -Qdtq)         # -q is what makes this substitution valid
+
+Also works on -Ss / -Qs searches.
+
+## Writing a distro ISO to USB (skip balena-etcher on Arch)
+
+balena-etcher from the AUR drags in electron + rust FROM SOURCE (multi-hour build)
+and its dep chain conflicts (nodejs-lts-iron vs -jod both claim `nodejs`). Not worth it.
+- Native + light (KDE, in repos):  sudo pacman -S --needed isoimagewriter
+- Etcher's verify-after-write, no build:  the official .AppImage (github releases)
+- Distro-hopping? ventoy-bin (AUR): flash the stick ONCE, then just drop .iso files
+  on it and pick from a boot menu. No reflash per distro.
+
+## paru: clean leftover AUR build files
+
+paru clones each PKGBUILD + downloads sources under ~/.cache/paru/clone; these pile
+up, and a failed build leaves its tree behind.
+
+    paru -c        # remove untracked/leftover AUR build files (regenerable — safe)
+
+Only touches ~/.cache/paru; the repo cache (/var/cache/pacman/pkg) is paccache's job.
+
+## Gotcha: a transaction that fails at "checking conflicts" installs NOTHING
+
+pacman transactions are atomic. "failed to prepare transaction (conflicting
+dependencies)" happens during PREPARE, before any file is written — so a build that
+dies there (e.g. the balena-etcher nodejs conflict) leaves your system unchanged.
+Verify: pacman -Qq <pkg> → "not found" = nothing installed. Then paru -c to clear
+the build clones.

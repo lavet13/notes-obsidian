@@ -7,6 +7,95 @@ tags: []
 
 # Journal
 
+## 2026-07-31 — Docker disk usage, prune semantics, volume backup
+
+**What we covered.** Docker disk accounting end to end: the four buckets +
+layer sharing, read-only inspectors, prune semantics and gotchas, dangling vs
+unused images, tag/untag, volume backup/restore, DB dumps, and the `tar` -f/-C
+mechanics under the backup one-liner.
+
+**Key insight.** "Is docker lying about size?" — no: Docker reports LOGICAL
+sizes, `du` reports PHYSICAL blocks; the gap was btrfs zstd compression
+(confirmed, see findings). My first guess — shared-layer inflation — was
+DISPROVEN by SHARED SIZE=0 in `df -v`; the inflation effect is real in general
+but didn't apply to this image set. Other load-bearing facts:
+- `image prune -a` is gated by ANY container reference (running OR stopped), not
+  by tag. All four images showed `In Use` → prune -a reclaims 0B.
+- "Unused volume" = zero container refs. The `--rm` backup helper never orphans
+  the volume — the real owner container holds it throughout (LINKS 1->2->1).
+- `docker system prune --volumes` sweeps only ANONYMOUS volumes; named unused
+  ones need `docker volume prune -a`. Real danger = `compose down` (keeps named
+  volumes) then a broad `volume prune -a`.
+- `tar` create: `-f` = OUTPUT path (absolute → independent of -C/pwd); `-C DIR .`
+  = INPUT, records members relative to DIR so restore lands correctly.
+
+**What we built/changed.**
+- NEW dev-env/docker-knowledge.md (ref drafted, NOT yet committed): inspect cmds,
+  df-vs-du, dangling/unused, prune defaults, untag/retag, volume backup/restore,
+  ## Database backups (pg_dumpall/mysqldump), builder deprecation.
+- bash-knowledge.md: new `## tar` section (‑f create-output/extract-input incl.
+  `-f -` stdin, `-C DIR .`, member paths); de-staled `### sed delimiter swap`
+  (dropped "+ tar stdin / two idioms" — only the sed idiom remains there).
+- Anki: docker-knowledge-cards.tsv, 14 cards (dev-env). Card 14 (tar `-C .`)
+  re-tagged `dev-env bash tar` since its mechanics moved to bash-knowledge.
+
+**Findings about this machine.**
+- /var/lib/docker is on btrfs subvol /@ with `compress=zstd:1` → `du` (~1.2G,
+  physical) < Docker logical (~1.7G), ~1.4x ratio.
+- Docker uses the containerd image store: `docker images` = DISK USAGE (unpacked)
+  vs CONTENT SIZE (compressed blobs) + In Use; `docker image ls --tree` lists
+  per-platform variants (0B = platform not pulled).
+- The two DB volumes belong to TWO separate compose projects sharing one daemon
+  (php-apache-mysql-containerized_data → mysql; donbass-post_donbass-post-data →
+  postgres). Daemon view is global, not per-directory.
+- Legacy (non-BuildKit) builder active → `pacman -S docker-buildx` to switch.
+
+**Next step to resume.** Paste the docker-knowledge.md + bash-knowledge.md blocks,
+import docker-knowledge-cards.tsv, commit notes-obsidian. Optional: `sudo compsize
+/var/lib/docker` for the exact ratio; `sudo pacman -S docker-buildx` clears the
+deprecation.
+
+**Commit (notes-obsidian).**
+docs(dev-env): docker disk/prune/volume notes + tar -f/-C in bash-knowledge
+
+## 2026-07-28 — Arch/pacman deep-dive + Linux-learning track kickoff
+
+**What we covered.**
+- Decomposed pacman's combined flags letter-by-letter (-Syu, -Rns, -Rdd,
+  --needed, makepkg -si) and the -Qsub verbs. Key insight: every letter is one
+  independent switch; the partial-upgrade footgun (`-Sy` alone) follows directly
+  from "no stable snapshot — pkgs built against each other's current versions."
+- Six maintenance gotchas not previously in notes: orphans, cache/paccache,
+  db.lck, .pacnew, keyring refresh, query verbs. Each with a reverse.
+- Login manager: I wrongly guessed SDDM; `systemctl status display-manager`
+  showed **plasmalogin** (Plasma Login Manager) — the SDDM successor shipping
+  with Plasma 6.6. Session mechanism unchanged (/usr/share/wayland-sessions/),
+  so the Sway-as-second-session plan is intact.
+
+**Findings about this machine.**
+- DM is plasmalogin.service, not sddm. Sway would register as a Wayland session
+  and appear in its picker; KDE stays default.
+- amneziavpn-bin is pinned via IgnorePkg (4.8.21.0), so -Syu skips it with
+  [ignored]. Reason for the pin unconfirmed — ASK next session before updating.
+
+**What we built/changed (notes repo).**
+- arch-knowledge.md: appended flag-anatomy, partial-upgrade footgun, IgnorePkg
+  override, routine-maintenance, query-verbs, and login-manager sections.
+- anki/arch-pacman-2026-07-28.tsv: 15 cards (dev-env; pacman/flags/aur/
+  maintenance/kde sub-tags).
+- Decided: general-OS learning notes → NEW dev-env/linux-knowledge.md (not yet
+  created); arch-knowledge stays pacman-specific, bash-knowledge stays scripting.
+
+**Resume pointer / next step.**
+1. START the Linux-learning track, GRADUAL mode: Shotts (TLCL) foundational
+   chapter first (filesystem + navigation) to give the puzzles ground, THEN
+   OverTheWire Bandit level 0. Ivan sends the level task; we solve + card.
+2. Create dev-env/linux-knowledge.md on the first durable general-OS fact.
+3. Open Q: why is amneziavpn-bin pinned? Confirm before updating 4.8 → 5.0.
+
+**Commit (notes-obsidian):** `arch-knowledge: pacman flag anatomy + maintenance;
+add arch-pacman cards`
+
 ## 2026-07-24 — Desktop migration: Windows 10/WSL -> native CachyOS
 
 **What we covered.** Debugged a flaky Windows desktop, then migrated it to

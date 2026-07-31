@@ -39,3 +39,14 @@ Why it beats `alias notes='cd ~/notes'`:
 Gotcha: it's `~name` (tilde-prefixed), not bare `name`. `cd notes` still fails;
 `cd ~notes` is the form. Put the `hash -d` lines in .zshrc (ordering vs the p10k
 instant-prompt block doesn't matter — they don't write to the terminal).
+
+## Checking .zshrc for errors without running it
+
+    zsh -n ~/.zshrc      # -n = no-exec: PARSE only, report syntax errors, run nothing
+    zsh -il -c exit      # load a real interactive login shell → surfaces runtime errors too
+
+`zsh -n` catches STATIC / syntax errors only (unbalanced quotes, a missing `fi`) — found
+by parsing alone. It does NOT catch LOGIC errors: a valid line with the wrong meaning.
+e.g. `hash -d video=~/yt/video` (see Named directories) is syntactically perfect —
+`hash -d` never checks the path exists — so a typo (video vs videos) passes -n clean and
+only fails at USE time: `cd ~video` → no such file or directory.

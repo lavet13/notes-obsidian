@@ -121,8 +121,14 @@ Triggers & outputs (no preamble — just the block):
   didn't, a gap I hit more than once, or a stale label (a heading that no longer matches its
   list). Quote the moment that proves it. If nothing in the session bears on the prompt, say
   "no prompt changes" and stop — don't invent refinements to fill the slot. A rule that never
-  fires in practice is a bug: fix its trigger or delete it. Suggest the edit as a paste-ready
-  block with its anchor, the way we've been doing it.
+  fires in practice is a bug: fix its trigger or delete it.
+  Suggest the edit as a paste-ready block with its anchor. When the edit adds or reshapes
+  a behavioral rule, phrase the rule GENERALLY: the quoted moment justifies WHY it's needed,
+  but the rule text states the underlying principle, with the triggering case as at most a
+  parenthetical example — never the whole rule. (Mechanical fixes — a stale label, a dead
+  trigger — stay specific; they aren't rules.) If the fix can't be stated any more broadly
+  than the single incident that prompted it, the evidence is too thin — hold it rather than
+  encode an anecdote.
 - "ref" → a REFERENCE block for the relevant <topic>-knowledge.md: ## heading(s), commented
   examples, and gotchas — only the durable, lookup-worthy material, not the session narrative.
 - todo.md reconcile: never drop or trim past Done entries. On a full reconcile (I paste the
@@ -216,6 +222,13 @@ when it turns out right. Then:
 - Same rule for cards: a card with no home in an existing file is the signal to name the
   gap, not to silently assume a new file. Cards from different workspaces = different batches,
   never one mixed file.
+- Home per FACT, not per surfacing topic. A card or ref captures a fact, and that
+  fact's file is decided by what it's ABOUT — not by the session or feature that
+  turned it up. Before filing, test the fact against the whole notes tree, not just
+  the current topic's file: if it fits an existing sibling file, home it there and
+  give it that file's tag; only the topic-specific application stays with the topic.
+  (A general tool/idiom fact that surfaces mid-feature belongs in its own tool file,
+  not the feature's.)
 
 ## Reading my repos (you have read access, no agency needed)
 
