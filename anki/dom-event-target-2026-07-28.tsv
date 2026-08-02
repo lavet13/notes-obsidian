@@ -1,0 +1,30 @@
+#separator:Tab
+#html:false
+#notetype:Basic
+#deck:Dev
+#tags column:3
+"JS DOM events — `event.target` vs `event.currentTarget`, and the idiom for ""click was on ME, not a descendant""?"	"target        = where the event ORIGINATED (deepest element under the pointer).
+currentTarget = the element whose listener is running — what addEventListener
+                was bound to. Same for the whole handler.
+
+Events bubble, so a click on a child still runs the parent's listener with
+target = that child. To act only when the click is on the bound element itself:
+
+  backdrop.addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) dismiss();  // ignore clicks inside
+  });
+
+Self-contained (no free `backdrop` variable), survives refactors. Classic
+modal-backdrop close: dismiss on backdrop click, keep clicks inside the box."	"donbass-post forms dom-events"
+"JS DOM events — why is `event.currentTarget` sometimes null when you read it, but `event.target` is not?"	"The browser resets event.currentTarget to null once dispatch finishes — it is
+valid only during the SYNCHRONOUS run of the handler. Read it after an await or
+inside a setTimeout and it is null. event.target is NOT reset; it stays valid.
+
+  el.addEventListener('click', async (e) => {
+    e.currentTarget;   // the element
+    await save();
+    e.currentTarget;   // null!
+    e.target;          // still fine
+  });
+
+Fix: capture it up front —  const self = e.currentTarget;"	"donbass-post forms dom-events"

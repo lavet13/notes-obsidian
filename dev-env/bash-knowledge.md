@@ -837,17 +837,20 @@ printf 'log\nlog.txt\nmylog\n' | grep -E '^log$'  # log only — ^ pins start, $
 > PIN with `^ … $`. Same goal, opposite starting points.
 
 ### `sed` delimiter swap
-````bash
+
+```bash
 sed 's|^\./||'   # `s` takes ANY delimiter after it. Pattern has a slash (./), so use | instead
                  # of / to avoid escaping: s/^\.\/// is the ugly equivalent. ^ = line start,
                  # \. = literal dot, / = literal (no escape — | is the delimiter). Strips "./".
-````
+```
 
 ---
 
 ```bash
 ## `tar` create side — `-f` is the OUTPUT path, `-C DIR .` is the INPUT
 # (complements the read-side idiom above: `curl … | tar xz -C dir`)
+# Flag letters below:  c=create   t=list (table-of-contents; reads, never extracts)
+#                      x=extract   z=gzip/gunzip   f=archive file   C=chdir into DIR first
 # On CREATE, one command does two INDEPENDENT jobs:
 tar czf /backup/vol.tar.gz -C /v .
 #       └──────┬─────────┘  └─┬┘ │
@@ -858,7 +861,8 @@ tar czf /backup/vol.tar.gz -C /v .
 # The `.` is the INPUT, not the output. The destination is fixed by -f. It's easy to misread
 # `.` as "create it in the current dir" — it isn't; it's "pack the current dir".
 #
-# Why `-C /v .` instead of `tar czf out.tgz /v`? It changes the MEMBER PATHS recorded inside:
+# Why `-C /v .` instead of `tar czf out.tgz /v`? It changes the MEMBER PATHS recorded inside
+# (`tar tzf X` = list X's members, no extraction — used here just to show the difference):
 tar czf a.tgz /v      ; tar tzf a.tgz   # → v/  v/data/…   (leading v/ baked in; GNU also warns
                                         #   "Removing leading '/'" for absolute operands)
 tar czf b.tgz -C /v . ; tar tzf b.tgz   # → ./  ./data/…   (relative to /v)
@@ -888,6 +892,39 @@ cp -n ...             # DEPRECATED on GNU; Debian prints a non-portability warni
 cp -r src/. dst/      # the /. = "contents of src, hidden files included"
 cp -rT src dst        # -T / --no-target-directory: same effect, self-documenting
 # (cp -r src dst when dst exists → nests as dst/src; src/* misses dotfiles)
+```
+
+---
+
+## umask — default-permission mask (bits to REMOVE)
+
+Shell builtin naming the permission bits to CLEAR from the base when a file/dir is created.
+Octal, per-process, inherited by children, usually set in shell rc.
+
+```bash
+# result = base with the umask's bits removed:  result = base & ~umask
+# Base: files start 666 (rw for all), dirs start 777. Files get NO execute bit by default —
+# that's why source files never come out executable.
+umask                # print current mask, octal (e.g. 022)
+umask -S             # print it symbolically (e.g. u=rwx,g=rx,o=rx)
+
+# Common masks and what new files/dirs land as:
+#   umask 022 (typical):  file 644 rw-r--r-- ,  dir 755 rwxr-xr-x
+#   umask 077 (private):  file 600 rw------- ,  dir 700 rwx------
+#   umask 002 (group-wr): file 664 rw-rw-r-- ,  dir 775 rwxrwxr-x
+
+# Worked example, umask 077 on a new FILE:
+#   base   666   rw- rw- rw-
+#   umask  077   --- rwx rwx    owner digit 0 = clear nothing;  grp/oth 7 = clear rwx
+#   result 600   rw- --- ---
+umask 077; touch f; ls -l f     # -rw-------  owner-only from birth, no chmod needed
+
+# tldr decode: "restrict" = "mask out / take away". "restrict no permissions for the owner"
+#   = owner digit 0 = keep defaults; "restrict all for everyone else" = grp/oth digit 7 =
+#   strip rwx. The double-negative phrasing is what reads backwards.
+# GOTCHA: umask only ever REMOVES bits — it can't ADD above the 666/777 base. chmod +x still
+#   needed for an executable. (It's the default-setter behind the manual `chmod 600/700`
+#   used for SSH keys below.)
 ```
 
 ---

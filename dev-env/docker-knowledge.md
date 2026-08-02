@@ -99,9 +99,10 @@ and inconsistent. Two safe options:
 - LOGICAL dump while running (preferred) — transaction-consistent:
 
 ```bash
-# postgres — all DBs + roles. -t = tty-friendly. Adjust -U to your DB user.
-docker exec -t <pg_container> pg_dumpall -U postgres > dump-$(date +%F).sql
-cat dump-YYYY-MM-DD.sql | docker exec -i <pg_container> psql -U postgres   # restore
+# postgres — all DBs + roles. NO -t: a pty rewrites \n->\r\n and corrupts the dump
+# (pg_restore can segfault on it). Adjust -U to your DB user.
+docker exec <pg_container> pg_dumpall -U postgres > dump-$(date +%F).sql
+cat dump-YYYY-MM-DD.sql | docker exec -i <pg_container> psql -U postgres   # -i: feed stdin
 # (single DB instead of all: pg_dump -U postgres <db>)
 
 # mysql/mariadb — avoid inline -p<pw> (leaks into `ps` and shell history); use env:

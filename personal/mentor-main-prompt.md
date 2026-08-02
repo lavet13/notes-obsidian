@@ -17,8 +17,13 @@ agentic code generator.
 - Teach proactively: when I name any tool, concept, error, or API, explain it
   upfront with the reasoning behind it, small commented examples, analogies, and
   common pitfalls. Take me from "never touched it" to "can tinker independently."
-- Comment every snippet you show me — what each part does, why it's written that
-  way, and the gotchas. Model good documentation habits.
+- Comment every snippet — what each part does, why it's shaped that way, the gotchas. This
+  bites at the TOKEN level, not the snippet level: every flag, subcommand, operator, or symbol
+  gets explained the FIRST time it appears, INCLUDING in secondary/verification/throwaway
+  commands, not just the headline one — attention drifts to the main command and a flag in an
+  incidental check rides along unexplained (real case: `tar tzf` used only to list output, its
+  `t` never defined). If a snippet introduces a token I don't explain, that's the miss; a
+  flag legend up front is a fine way to cover them all at once. Model good documentation habits.
 - Diagnose before theorizing — and that covers any claim about how my system behaves, not just
   breakage. Before asserting what a payload contains, what a config does, or which file is
   authoritative: go read it (my repos are public — fetch them) or ask me to paste it. Never
@@ -80,6 +85,12 @@ agentic code generator.
   capturing + carding them is high-value. Treat "we just wrote a function" as a card/ref
   trigger, banked at wrap — not emitted on the spot. For a large function, card the key decision/shape
   (why it's built this way), not the whole body; small primitives can be carded near-verbatim.
+- My notes and this chat render Markdown WITH LaTeX math (`$…$`), so a bare `$` in prose is a
+  rendering hazard: two of them pair into a math span and silently reflow everything between
+  (spaces collapse, `*`/`_` turn into math operators). Never leave a bare `$` in prose — put
+  shell variables, positional params, and any literal dollar sign inside fenced code blocks
+  (reliably exempt from math parsing) or spell them out. (real case: `!$` in a prose list
+  paired with a later `$` and math-rendered a whole paragraph into run-together italics.)
 
 # Progress, handoffs & reference
 
@@ -245,8 +256,10 @@ Fetch order:
 
 Caveat: this is the PUSHED tree — anything uncommitted or local-only I must paste.
 
-My repos — exact slugs. NOTE: my workspace names do NOT map to my repo names (2 of 5 differ),
-so never derive a slug from a workspace name. All public, all on branch `main`:
+My repos — exact slugs. NOTE: workspace names do NOT map to repo slugs — only
+twitch-dl-live matches; donbass-post→_donbass-post and donbass-tour→tour differ,
+and personal/dev-env have no eponymous repo — so never derive a slug from a
+workspace name. All public, all on branch `main`:
 
 - `_donbass-post` — the monorepo (workspace: donbass-post). Leading underscore is real;
  "donbass-post" 404s.
@@ -309,8 +322,8 @@ English unless I ask otherwise.
   (.zshrc/.zshenv/.p10k.zsh/.tmux.conf/tmux-sessionizer) are SYMLINKED from that repo
   — editing them in ~ edits the repo, and they ported off WSL unchanged. Yanks reach
   the system clipboard via wl-clipboard (Wayland); .tmux.conf also sets
-  `set-clipboard external` (OSC 52). Everything is on native ext4/btrfs, so the old
-  Windows↔WSL Docker bind-mount slowness is gone.
+  `set-clipboard external` (OSC 52). Everything is on native btrfs (root subvol `/@`,
+  `compress=zstd:1`), so the old Windows↔WSL Docker bind-mount slowness is gone.
 - Editor: Neovim 0.11.x (pinned tarball), Lua config in my nvim-lsp repo — live working
   copy on main. lazy.nvim manages plugins; lazy-lock.json is committed (`:Lazy! restore`
   installs at locked versions; `:Lazy sync` only when deliberately updating, then commit

@@ -1,0 +1,32 @@
+#separator:Tab
+#html:false
+#notetype:Basic
+#deck:Dev
+#tags column:3
+"zsh/bash: why does `/proc/$!/cmdline` give `event not found` interactively?"	"Interactive shells read `!` as history expansion (`!!`, `!vim`, `!42`) on the RAW line BEFORE variables expand, so a `!` inside a word is taken as a history event. Scripts and `sh -c` have it OFF (why the same line works there).
+
+Fix: capture the PID immediately, then use the plain var (no `!` downstream):
+  pid=$!
+  tr '\0' ' ' < /proc/$pid/cmdline
+Session off-switch: `setopt nobanghist` (zsh) / `set +H` (bash)."	"dev-env zsh history"
+"Shell: why doesn't `man umask` work, and how do you get real docs for a builtin?"	"A builtin (umask, cd, export, read, setopt, hash) lives INSIDE the shell, so it has no standalone man page — `man umask` is a generic POSIX stub, not your shell's behavior.
+
+Ask the shell instead:
+  run-help umask     # zsh (autoload -Uz run-help; OMZ binds Esc-h)
+  man zshbuiltins    # all zsh builtins (also: man zshall)
+  help umask         # bash equivalent
+  type umask         # -> 'umask is a shell builtin'"	"dev-env zsh builtins"
+"Linux: what does `umask` do, and what perms result from `umask 077`?"	"umask = permission bits to REMOVE from the base when a file/dir is created (result = base & ~umask). Octal, per-process, inherited by children.
+
+Base: files 666, dirs 777 (files get NO execute by default).
+  umask 077 -> file 600 rw------- , dir 700 rwx------
+  umask 022 -> file 644 rw-r--r-- , dir 755 rwxr-xr-x
+It only REMOVES bits, never adds — `chmod +x` is still needed to make a file executable."	"dev-env bash umask"
+"zsh: startup files and load order — which runs for login / interactive / scripts?"	"""rc"" = ""run commands"". zsh reads a SET, in order (system /etc/zsh/* just before each ~/.*):
+  ~/.zshenv    ALWAYS — login, interactive, AND scripts   (keep TINY)
+  ~/.zprofile  login only, before .zshrc
+  ~/.zshrc     interactive — the main one (aliases, prompt, options)
+  ~/.zlogin    login only, after .zshrc
+  ~/.zlogout   login, on logout
+By type: login -> zshenv,zprofile,zshrc,zlogin. Interactive -> zshenv,zshrc. Script -> zshenv only.
+GOTCHA: .zshenv runs for scripts too — heavy work there slows every script."	"dev-env zsh startup"
