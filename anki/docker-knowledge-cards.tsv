@@ -49,3 +49,7 @@ Arch/CachyOS:  sudo pacman -S docker-buildx
 - WHAT is packed: `-C /v` chdirs into /v, then `.` = its contents. `.` is the INPUT, not the output.
 
 `-C /v .` records members as ./file (relative to /v), so `tar x -C /v` restores into the volume root. Plain `tar ... /v` records v/file -> restores to /v/v/file (wrong); GNU tar also warns ""Removing leading '/'""."	"dev-env bash tar"
+"Docker: what do `docker exec` flags `-i`, `-t`, `-e` do?"	"-i (--interactive) = keep the container's STDIN open — needed to PIPE data in (restore: cat x.sql | docker exec -i <c> psql). Without it: instant EOF -> silent no-op. A dump (output redirected out) does NOT need it.
+-t (--tty) = allocate a pseudo-TTY; for an interactive shell (docker exec -it <c> bash).
+-e (--env) = set an env var for that one exec (fresh env each call, so it repeats on the restore line). -e MYSQL_PWD=<pw> passes a secret via ENV, not argv — argv (/proc/<pid>/cmdline) is world-readable 0444, environ is owner-only 0400."	"dev-env docker exec"
+"Docker: why must you NOT use `docker exec -t` when redirecting output to a file?"	"-t allocates a pseudo-TTY, and a pty maps \n -> \r\n on output. So `docker exec -t <c> pg_dumpall > dump.sql` writes CRLF-corrupted bytes and pg_restore can segfault on it. Drop -t for ANY redirect-to-file (dumps, binary output). Keep -t only for interactive shells (docker exec -it <c> bash)."	"dev-env docker exec"

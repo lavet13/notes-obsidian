@@ -91,6 +91,34 @@ docker run --rm -v <vol>:/v -v "$PWD":/backup \
   container still references it throughout (LINKS 1->2 during, back to 1 after).
 - LIVE DB: don't tar a running DB's volume — see ## Database backups below.
 
+## docker exec flags — `-i`, `-t`, `-e`
+
+`docker exec` (and `docker run`) run a command in a container. Three flags worth knowing:
+
+```bash
+-i / --interactive   # keep the container process's STDIN open — needed to PIPE data IN.
+#   restore: cat dump.sql | docker exec -i <c> psql -U postgres
+#   Without -i the process gets instant EOF -> reads nothing -> silent no-op.
+#   A dump (output redirected OUT) does NOT need -i.
+
+-t / --tty           # allocate a pseudo-TTY. For an INTERACTIVE shell: docker exec -it <c> bash
+#   FOOTGUN: a pty maps \n -> \r\n, so `docker exec -t <c> pg_dumpall > dump.sql` writes CRLF
+#   and corrupts the dump (pg_restore can segfault). NEVER use -t when redirecting to a file.
+
+-e / --env           # set an env var for THAT exec (fresh env each call -> repeats per command).
+#   Secrets: -e MYSQL_PWD=<pw> passes the password via ENV, not argv. Why it matters:
+#     /proc/<pid>/cmdline (argv)  is world-readable (0444) -> -p<pw> leaks to any user on the box
+#     /proc/<pid>/environ (env)   is owner-only     (0400)
+#   NUANCE: -e MYSQL_PWD=<literal> is STILL in the host `docker exec` argv while it runs, and in
+#   shell history. Cleanest = bare `-e MYSQL_PWD` (NO value): docker forwards the host env var,
+#   so the value is in NO argv; source it from a 0600 file to keep it out of history too:
+#     umask 077; printf %s 'pw' > ~/.dbpw; export MYSQL_PWD="$(cat ~/.dbpw)"
+#     docker exec -e MYSQL_PWD <c> mysqldump -u root <db> > db.sql
+```
+
+- `-it` together is the usual interactive-shell combo (`docker exec -it <c> bash`); keep it away
+  from redirected dumps, where the `-t` half corrupts output.
+
 ## Database backups (logical vs file-level)
 
 A running DB has buffered/in-flight writes, so a file-level tar of its volume can be torn
@@ -105,7 +133,7 @@ docker exec <pg_container> pg_dumpall -U postgres > dump-$(date +%F).sql
 cat dump-YYYY-MM-DD.sql | docker exec -i <pg_container> psql -U postgres   # -i: feed stdin
 # (single DB instead of all: pg_dump -U postgres <db>)
 
-# mysql/mariadb — avoid inline -p<pw> (leaks into `ps` and shell history); use env:
+# mysql/mariadb — inline -p<pw> is world-readable in `ps` (argv); pass via env instead:
 docker exec -e MYSQL_PWD=<pw> <mysql_container> mysqldump -u root <db> > db-$(date +%F).sql
 cat db-YYYY-MM-DD.sql | docker exec -i -e MYSQL_PWD=<pw> <mysql_container> mysql -u root <db>
 ```
