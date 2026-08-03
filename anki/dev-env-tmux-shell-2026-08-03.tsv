@@ -1,0 +1,67 @@
+#separator:Tab
+#html:false
+#notetype:Basic
+#deck:Dev
+#tags column:3
+"Shell brace expansion: what does `pre{a,b,c}post` produce, and at what stage does it happen?"	"pre{a,b,c}post  ->  preapost prebpost precpost   (one copy per comma-separated item)
+
+Happens FIRST — before variable expansion, before globbing, before the command runs.
+Pure text: it never checks the filesystem (unlike a glob such as *).
+
+Ranges:  {1..5} -> 1 2 3 4 5     {a..e} -> a b c d e
+Preview safely with:  echo pre{a,b,c}post"	"dev-env bash brace-expansion"
+"Shell: rename `config` to `config.bak` in one command without retyping the path?"	"mv config{,.bak}        ->  mv config config.bak
+
+The empty item ("""") gives the original name; "".bak"" gives the backup. The shell
+expands it before mv runs. Works BECAUSE it's text expansion, not globbing — the
+.bak target doesn't exist yet, so a glob couldn't produce it.
+
+Reverse:  mv config{.bak,}   ->  mv config.bak config"	"dev-env bash brace-expansion"
+"Bash parameter expansion: what do `#`, `##`, `%`, `%%` strip, and how do you get a basename / drop an extension?"	"Strip a GLOB pattern from the value:
+  #   shortest leading (prefix)      ##  longest leading
+  %   shortest trailing (suffix)     %%  longest trailing
+Mnemonic: # is LEFT of the number keys -> prefix; % is RIGHT -> suffix. Doubled = greedy.
+
+path=""/a/b/file.md""
+  ${path##*/}  -> file.md    (basename — longest leading */)
+  ${path%/*}   -> /a/b       (dirname  — shortest trailing /*)
+f=""a.tar.gz""
+  ${f%.*}      -> a.tar      (drop last extension)
+  ${f##*.}     -> gz         (extension only)"	"dev-env bash parameter-expansion"
+"tmux: why can't a single press of your prefix (e.g. Ctrl+a) also act as its normal key in the shell, and what's the workaround?"	"The prefix is always intercepted and held to see the next key — that's its job — so it
+can never fall through to the pane's program.
+
+Workarounds:
+  - bind-key C-a send-prefix  -> double-tap sends ONE literal keystroke to the app
+    (so prefix C-a can still reach readline's beginning-of-line).
+  - Or choose a prefix you never need in-app (e.g. C-Space) and drop send-prefix.
+
+Gotcha: a prefix the compositor grabs (Ctrl+Space = common layout/IME toggle) never
+reaches tmux at all."	"dev-env tmux prefix"
+"tmux `new-session`: what do `-s`, `-A`, `-d`, `-c` do, and how do they stack?"	"-s NAME   session name
+-A        attach if NAME exists, else create (idempotent)
+-d        detached — create but DON'T attach the current client
+-c DIR    starting directory
+
+Stack them:  -As NAME (attach-or-create)   -ds NAME (create detached)"	"dev-env tmux sessions"
+"tmux: already inside tmux, you want to jump to session X (create if needed). Why not `new-session -A`, and what do you use instead?"	"new-session -A would ATTACH -> a session nested inside a session (tmux warns, confusing).
+
+Inside tmux, create-detached then switch:
+  tmux new-session -ds X 2>/dev/null   # make it if absent; ignore ""exists""
+  tmux switch-client -t X              # move THIS client — no nesting
+Existence guard if you prefer:  tmux has-session -t X"	"dev-env tmux sessions"
+"tmux: why is `.` illegal in a session name, and how do you sanitize a directory name into one?"	"Target syntax is  session:window.pane , so '.' is the window.pane separator — illegal
+in a name.
+
+Sanitize:  name=""${name//./-}""   (or:  tr . -)
+That's why tmux-sessionizer does  basename ... | tr . - ."	"dev-env tmux sessions"
+"Shape of a `ts` helper: jump to a named tmux session, create on demand, safe inside AND outside tmux?"	"name=""${1:-${PWD##*/}}""     # arg, else current dir basename
+name=""${name//./-}""         # '.' illegal in session names
+if [[ -n ""$TMUX"" ]]; then   # inside tmux
+  tmux new-session -ds ""$name"" 2>/dev/null
+  tmux switch-client -t ""$name""     # no nesting
+else
+  tmux new-session -As ""$name""      # attach-or-create
+fi
+
+Key decision: the $TMUX branch — inside tmux, attaching would nest, so detach-create + switch."	"dev-env tmux sessions bash"

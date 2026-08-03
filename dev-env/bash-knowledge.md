@@ -490,6 +490,68 @@ echo "${1:-no argument provided}"   # correct — with a default
  $*    # → unquoted: same as $@
 ```
 
+## Brace Expansion
+
+Pure TEXT expansion the shell does BEFORE variables, globbing, or the command runs.
+It never touches the filesystem — expands whether or not the files exist (the opposite
+of a glob like `*`, which only matches names already on disk).
+
+```bash
+pre{a,b,c}post        # → preapost prebpost precpost   (one copy per comma item)
+{1..5}                # → 1 2 3 4 5                    (range form)
+{a..e}                # → a b c d e
+file.{js,ts,jsx}      # → file.js file.ts file.jsx
+
+# Empty item = "" → the un-suffixed original. The backup idiom:
+mv config{,.bak}      # → mv config config.bak         (path typed once)
+mv config{.bak,}      # reverse: mv config.bak config
+cp -r dir{,.orig}     # → cp -r dir dir.orig
+```
+
+Preview any expansion by prefixing `echo` — the shell shows exactly what the command
+will receive, before you run the real thing:
+
+```bash
+echo /long/path/to/file{,.bak}   # prints both final paths; no rename happens
+```
+
+Gotchas:
+- NO spaces inside the braces unless quoted — `{a, b}` injects a literal space.
+- Not globbing: `file{,.bak}` works precisely BECAUSE the `.bak` target doesn't exist
+  yet — a glob could never produce a name that isn't on disk.
+- Runs before variable expansion, so `{$a,$b}` won't expand a var into a brace list.
+
+---
+
+## Parameter Expansion — prefix/suffix removal (`#` `##` `%` `%%`)
+
+Strips a matching GLOB pattern from the start or end of a value. Complements the
+substring/replace forms in String Manipulation above.
+
+```bash
+path="/home/me/notes/file.md"
+
+${path#*/}      # home/me/notes/file.md   # #  = strip SHORTEST leading match of */
+${path##*/}     # file.md                 # ## = strip LONGEST  leading match → basename
+${path%/*}      # /home/me/notes          # %  = strip SHORTEST trailing match of /* → dirname
+${path%%/*}     # (empty)                 # %% = strip LONGEST  trailing match
+
+file="archive.tar.gz"
+${file%.*}      # archive.tar   # drop LAST extension (shortest trailing .*)
+${file%%.*}     # archive       # drop ALL extensions (longest trailing .*)
+${file##*.}     # gz            # extension only (longest leading up to last dot)
+```
+
+Mnemonic (US keyboard): `#` sits LEFT of the number keys → strips the LEFT/prefix;
+`%` sits RIGHT → strips the RIGHT/suffix. Doubling the symbol = greedy (longest match).
+
+_NOTE: trailing(%) = RIGHT, leading(#) = LEFT_
+
+```bash
+name="${1:-${PWD##*/}}"   # real use: default an arg to the current dir's basename,
+                          # with no `basename` subprocess. (See ts() in tmux-knowledge.)
+```
+
 # Practical illustration:
 
 ```bash
