@@ -7,6 +7,56 @@ tags: []
 
 # Journal
 
+## 2026-08-03 — KDE Naysayer scheme, Plasma Login Manager, Sway install, tmux prefix
+
+**What we covered.** KDE colour theming (Colour Scheme vs Plasma Style layers,
+`.colors` INI format), the ONLYOFFICE launcher ghost, discovering the login
+manager is PLM not SDDM, Sway install + how session-switching works, the tmux
+`C-a` prefix conflict + a `ts()` session helper, and an arch-setup.sh symlink for
+the scheme.
+
+**Key insight.**
+- KDE `.colors` = INI with **decimal R,G,B**, not hex. Editing the Colour Scheme
+  recolours Qt + GTK + the panel (Breeze Plasma Style inherits it); the **accent
+  colour is a SEPARATE systemwide setting**, not stored in the `.colors` file.
+  Diverged Selection from the theme's literal `#0000ff` to muted teal — pure blue
+  clashes on the teal desktop.
+- The launcher indexes `.desktop` files, not packages — `pacman -Qs onlyoffice`
+  was empty yet the entry persisted from a stray user-level `.desktop`.
+- A tmux prefix ALWAYS captures its key and waits for the next — it can never fall
+  through to the app. Moving `C-a`→`C-Space` frees `C-a` for readline's
+  beginning-of-line, so the `send-prefix` double-tap workaround becomes
+  unnecessary and was dropped. Rejected keeping `C-a` (wanted a single keypress).
+- Sway: `polkit` already installed satisfies the privilege-escalation requirement
+  (option 1) → no seatd / seat-group setup needed.
+
+**What we built/changed.**
+- nvim-lsp: `arch/Naysayer.colors` (converted from the naysayer.lua palette).
+- debian-p10k-zsh: `.tmux.conf` prefix `C-a`→`C-Space` (dropped `bind-key C-a
+  send-prefix`); `.zshrc` `ts()` named create-or-switch helper; arch-setup.sh new
+  §9c symlinking the scheme into `~/.local/share/color-schemes/`.
+- Installed `sway foot wmenu`.
+- notes-obsidian (NOT yet committed): bash-knowledge.md += `## Brace Expansion`,
+  `## Parameter Expansion — prefix/suffix removal`; tmux-knowledge.md += prefix/
+  send-prefix, subcommands/flags reference, `ts()` example. Anki
+  dev-env-tmux-shell-2026-08-03.tsv, 8 cards.
+
+**Findings about this machine.**
+- Login manager is **Plasma Login Manager** (`plasmalogin.service`), NOT SDDM —
+  the Plasma 6.6 replacement; CachyOS migrated. Config under System Settings →
+  **Login Screen** (not Colours & Themes). Session picker is **bottom-left**; Sway
+  shows there via `/usr/share/wayland-sessions/sway.desktop`.
+- ONLYOFFICE was a stray `~/.local/share/applications/onlyoffice-desktopeditors.desktop`
+  (not Flatpak, not pacman/AUR) — moved to `.bak`.
+- Sway default config: `$term`=foot, `$menu`=wmenu, `$mod`=Super (Super+Enter =
+  terminal, Super+d = launcher).
+
+**Next step to resume.** Customise Sway: `cp /etc/sway/config ~/.config/sway/config`,
+point `$term` at wezterm, map the naysayer palette onto borders + waybar. Open
+threads: verify `Ctrl+Space` isn't the Cyrillic layout toggle before relying on
+the new tmux prefix; confirm the ONLYOFFICE entry is gone after `kbuildsycoca6`;
+commit debian-p10k-zsh + notes-obsidian, import the `.tsv`.
+
 ## 2026-07-31 — Docker disk usage, prune semantics, volume backup
 
 **What we covered.** Docker disk accounting end to end: the four buckets +
