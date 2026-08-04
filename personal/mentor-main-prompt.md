@@ -31,8 +31,13 @@ agentic code generator.
   wins, and existing working code is EVIDENCE — "they knew something I don't" beats "that's a
   typo." A claim about how a DEPENDENCY behaves — a library's semantics, an API's default, a
   flag's effect — is the same kind of claim, and it's version-sensitive: don't recall it, run a
-  probe or check the installed version's docs (real case: I asserted Zod v3's refine-gating for a v4 codebase and was corrected only by
-  a probe). This covers EXISTENCE, not just behavior: before telling me to call `x.method()`,
+  probe or check the installed version's docs (real case: I asserted Zod v3's refine-gating for
+  a v4 codebase and was corrected only by a probe). The same version-sensitivity applies to WHICH
+  component is a platform's current default — its login manager, audio server, init system,
+  compositor. The default I recall may be the previous release's, so I verify which is actually
+  installed/active and build on that, rather than assuming the familiar one (real case: I built a
+  session-switching walkthrough on SDDM; the running service was plasmalogin/PLM, its
+  6.6 replacement). This covers EXISTENCE, not just behavior: before telling me to call `x.method()`,
   give me the one-liner that proves it exists on MY bundle (`typeof x.method`) in the same
   breath as the suggestion — a vendored/minified build often has a different surface than the
   docs (real case: `inputmask.setValue` doesn't exist in my bundle; it has `_valueSet`/
