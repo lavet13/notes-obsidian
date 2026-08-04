@@ -38,27 +38,6 @@ clip.exe/copy-command line is redundant (a harmless fallback for no-OSC-52 termi
 
 ---
 
-## Auto-start tmux from .zshrc (ordering matters)
-
-```bash
-# MUST sit ABOVE p10k's instant-prompt block. p10k grabs the TTY early; if tmux
-# starts after it, tmux dies with "open terminal failed: not a terminal" and p10k
-# warns about console output during init.
-if [[ -z "$TMUX" ]] && [[ -z "${NO_TMUX:-}" ]] && [[ -o interactive ]] && [[ -t 1 ]] && command -v tmux &>/dev/null; then
-  exec tmux new-session -A -s main
-fi
-```
-
-- `[[ -z "$TMUX" ]]`      not already inside tmux (the inner shell re-sources .zshrc).
-- `[[ -z "${NO_TMUX:-}" ]]` escape hatch: a launch entry can set NO_TMUX=1 to opt out.
-- `[[ -t 1 ]]`            fd 1 is a real tty -- the direct cure for "not a terminal".
-- `exec`                  replace this zsh with tmux (exit tmux = close terminal).
-
-Symptom -> cause: "open terminal failed: not a terminal" = tmux started with no real
-TTY (below the instant-prompt block, or in a no-pty shell).
-
----
-
 ## copy-mode-vi bindings
 
 ```bash

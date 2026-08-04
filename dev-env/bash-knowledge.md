@@ -1273,3 +1273,43 @@ Common causes & fixes:
 
 Keys copied from Windows (`/mnt/c/Users/<you>/.ssh`) arrive without Unix perms, so ssh
 refuses them until you re-`chmod` as above — which wsl-setup.sh does in step 5.
+
+## `tr` — translate / delete / squeeze characters
+
+A FILTER: reads STDIN, writes STDOUT. Takes NO filename args — pipe into it or
+redirect (`tr . - < file`), never `tr . - file` (that's an extra-operand error).
+Works on CHARACTERS, not strings or regex (that's sed's job).
+
+```bash
+# tr SET1 SET2 — map each char in SET1 to the same-POSITION char in SET2
+echo "a.b.c" | tr . -        # a-b-c        (every '.' -> '-')
+echo "abc"   | tr abc xyz    # xyz          (a->x b->y c->z: three 1:1 maps, NOT "abc"->"xyz")
+echo "hi"    | tr a-z A-Z    # HI           (ranges)
+echo "Hi 42" | tr '[:lower:]' '[:upper:]'   # HI 42   (character classes)
+
+# -d  delete every char in SET1
+printf 'a\nb\n' | tr -d '\n'         # ab       (strip newlines)
+echo "a 1 b 2"  | tr -d '[:digit:]'  # a  b     (drop digits)
+
+# -s  squeeze runs of SET1 chars down to one
+echo "a    b" | tr -s ' '            # a b      (collapse repeated spaces)
+
+# -c  complement SET1 (everything NOT in it); classic word-per-line:
+echo "one, two!" | tr -cs '[:alnum:]' '\n'   # one / two, each on its own line
+```
+
+Classes: `[:upper:] [:lower:] [:digit:] [:alnum:] [:space:] [:punct:]`. Escapes in
+SETs: `\n \t \r \\` and octal `\NNN`. Quote SETs so the shell can't touch them
+(`tr -d '\n'`, `tr '.' '-'`).
+
+Gotchas:
+- SET2 shorter than SET1 -> its LAST char repeats to fill: `tr a-z x` maps every
+  lowercase letter to `x`.
+- Filter-only: `tr` with a filename errors/misbehaves — always pipe or `<`.
+- For a single variable prefer parameter expansion (no subprocess):
+  `${v//./-}` == `printf %s "$v" | tr . -`. Use `tr` when already in a pipe, or for
+  `-d`/`-s`/`-c` / char classes.
+
+Applied (tmux-sessionizer): `basename "$sel" | tr . -` -> last path component with
+dots swapped for hyphens, because tmux session names can't contain `.` (see
+[[tmux-knowledge]]).
