@@ -1,0 +1,19 @@
+#separator:Tab
+#html:false
+#notetype:Basic
+#deck:Dev
+#tags column:3
+"`tr`: what does it operate on, what's its I/O model, and how does `tr SET1 SET2` map (vs sed)?"	"Translate/delete/squeeze CHARACTERS. It's a FILTER: reads STDIN -> STDOUT, takes
+NO filename args (pipe or redirect:  tr . - < file ).
+
+tr SET1 SET2 maps each char in SET1 to the SAME-POSITION char in SET2:
+  echo abc | tr abc xyz  ->  xyz    (a->x b->y c->z; three 1:1 maps, NOT ""abc""->""xyz"")
+No regex / multi-char patterns — that's sed. SET2 shorter -> its last char repeats
+(tr a-z x maps all lowercase to x)."	"dev-env bash tr"
+"`tr` flags `-d`, `-s`, `-c`, and the `tr -cs` word-per-line idiom?"	"-d SET   delete chars in SET       (tr -d '\n' strips newlines)
+-s SET   squeeze runs to one       (tr -s ' ' collapses repeated spaces)
+-c       complement SET (all chars NOT in it)
+
+Combine:  echo ""one, two!"" | tr -cs '[:alnum:]' '\n'  -> keeps alnum, turns every
+other run into a single newline = one word per line.
+Classes: [:upper:] [:lower:] [:digit:] [:alnum:] [:space:] [:punct:]"	"dev-env bash tr"

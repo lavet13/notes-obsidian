@@ -619,38 +619,6 @@ echo "${BASH_REMATCH[1]}"    # telegram (group 1)
 # Every ( ) populates BASH_REMATCH. Use [0-9] not \d.
 ```
 
-### BRE vs ERE — why `sed` needs backslashes
-
-`sed` uses **Basic** Regular Expressions by default, where `? + ( )` are LITERAL
-and must be escaped to get special meaning:
-
-```bash
-# \? = zero or one of the preceding element (here: an optional '#')
-sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
-#         ^#\?  matches both "PermitRootLogin yes" AND "#PermitRootLogin yes"
-```
-
-```bash
-# sed uses BRE by default. Enable ERE with -E (or GNU -r):
-sed -E 's/(foo|bar)+/X/' file     # ERE: + ( ) | are special as-is
-sed    's/\(foo\|bar\)\+/X/' file # BRE: same meaning, everything escaped
-
-# BRE essentials (the FULL list):
-# ^ $ . [abc] [^abc] [0-9] [a-z]   → same as ERE (no escaping needed)
-# *                                 → zero or more (same as ERE)
-# \?                                → zero or one     (escaped in BRE!)
-# \+                                → one or more     (escaped in BRE!)
-# \{n,m\}                           → interval        (escaped in BRE!)
-# \( \)                             → grouping        (escaped in BRE!)
-# \|                                → alternation     (escaped in BRE, GNU)
-# \1 \2                             → backreferences to groups
-#
-# Rule of thumb: in BRE, the "powerful" metachars need a backslash to wake up.
-# In ERE they're special by default and a backslash makes them literal. Opposite worlds.
-```
-
-In ERE (`grep -E`, `[[ =~ ]]`) you'd write plain `#?`. Same meaning, different escaping.
-
 ---
 
 ## String Manipulation
@@ -897,14 +865,6 @@ printf 'log\nlog.txt\nmylog\n' | grep -E '^log$'  # log only — ^ pins start, $
 
 > Mental model: glob = anchored by default, WIDEN with `*`. regex = unanchored by default,
 > PIN with `^ … $`. Same goal, opposite starting points.
-
-### `sed` delimiter swap
-
-```bash
-sed 's|^\./||'   # `s` takes ANY delimiter after it. Pattern has a slash (./), so use | instead
-                 # of / to avoid escaping: s/^\.\/// is the ugly equivalent. ^ = line start,
-                 # \. = literal dot, / = literal (no escape — | is the delimiter). Strips "./".
-```
 
 ---
 
@@ -1295,7 +1255,28 @@ echo "a 1 b 2"  | tr -d '[:digit:]'  # a  b     (drop digits)
 echo "a    b" | tr -s ' '            # a b      (collapse repeated spaces)
 
 # -c  complement SET1 (everything NOT in it); classic word-per-line:
-echo "one, two!" | tr -cs '[:alnum:]' '\n'   # one / two, each on its own line
+echo 'one, two!' | tr -cs '[:alnum:]' '\n'   # one / two, each on its own line
+
+# Trace of:  echo "one, two!" | tr -cs '[:alnum:]' '\n'
+#   SET1 = [:alnum:]  (letters+digits)      SET2 = \n
+#
+# Step 1 — apply -c (complement): SET1 is reinterpreted as "every char NOT alnum".
+#          For this input that means it now matches:  ','  ' '  '!'
+# Step 2 — TRANSLATE: each char matching (complemented) SET1 maps to SET2.
+#          SET2 is one char and SET1 is many, so SET2's last char repeats →
+#          EVERY non-alnum char becomes \n:
+#              o n e , _ t w o !     →     o n e \n \n t w o \n
+#              (the ", " is two non-alnum chars → two \n)
+# Step 3 — apply -s (squeeze): collapse runs of chars listed in SET2 (\n) to one.
+#          the \n\n between "one" and "two" becomes a single \n:
+#              one \n two \n
+# Output:
+#   one
+#   two
+#
+# The order is the key takeaway: complement reinterprets SET1 → translate →
+# squeeze acts on SET2. Squeeze always targets the last SET given, which is why
+# the newlines (not the letters) get collapsed.
 ```
 
 Classes: `[:upper:] [:lower:] [:digit:] [:alnum:] [:space:] [:punct:]`. Escapes in
@@ -1313,3 +1294,107 @@ Gotchas:
 Applied (tmux-sessionizer): `basename "$sel" | tr . -` -> last path component with
 dots swapped for hyphens, because tmux session names can't contain `.` (see
 [[tmux-knowledge]]).
+
+---
+
+## `sed` — stream editor (line-by-line regex transform)
+
+Reads input one line at a time, runs the script on each, prints the result. The
+workhorse is `s/PAT/REPL/FLAGS`. Two facts prevent most surprises: default regex is
+BRE (see subsection), and `s` replaces only the FIRST match per line without `g`.
+
+```bash
+# --- substitute: s/PATTERN/REPLACEMENT/FLAGS   (in -> out, all verified) ---
+sed 's/foo/bar/'    # "foo foo foo" -> "bar foo foo"    first match only
+sed 's/foo/bar/g'   # "foo foo foo" -> "bar bar bar"    g = every match on the line
+sed 's/foo/bar/2'   # "foo foo foo" -> "foo bar foo"    digit = only the Nth match
+sed 's/foo/bar/gI'  # "FOO Foo foo" -> "bar bar bar"    I = case-insensitive
+sed -n 's/foo/bar/p'  # lines "foo","baz" -> prints "bar" only
+                      #   -n mutes auto-print; p prints only lines a sub touched
+
+# --- delimiter: any char right after s (pick one absent from the text) ---
+sed 's|/usr/bin|/bin|'  # "/usr/bin/env" -> "/bin/env"      | dodges escaping the slashes
+sed 's|^\./||'          # "./foo/bar"    -> "foo/bar"        strip a leading "./"
+sed 's#\.tmp$##'        # "file.tmp" -> "file", BUT "file.tmp.keep" -> unchanged
+                        #   \. = literal dot, $ = end of line → only a TRAILING .tmp goes
+
+# --- addresses: WHICH lines the command runs on ---
+sed -n '3p'             # print only line 3
+sed -n '10,20p'         # print only lines 10..20
+sed '2d'                # delete line 2   ('2,5d' = range, '$d' = last line)
+sed '/^#/d'             # delete every line matching /^#/ (comment lines)
+sed '/BEGIN/,/END/d'    # delete the inclusive range from a /BEGIN/ line to an /END/ line
+sed '/error/s/foo/bar/' # run s/// ONLY on matching lines:
+                        #   "error foo" -> "error bar" ; "ok foo" -> "ok foo" (untouched)
+
+# --- capture groups & whole-match ---
+sed -E 's/(\w+)@(\w+)/\2 <\1>/'  # "alice@example" -> "example <alice>"
+                                 #   \1 \2 = groups; -E lets ( ) group without backslashes
+sed 's/.*/[&]/'                  # "hi" -> "[hi]"    & = the entire match
+
+# --- in-place edit (GNU) ---
+sed -i.bak 's/foo/bar/g' file    # rewrites file, keeps file.bak
+#   reverse:  mv file.bak file
+```
+
+```bash
+bash -c '
+echo "===== basename with/without -- (leading-dash operand) ====="
+selected="-weird.name"
+printf "without --: "; basename "${selected//./-}" 2>&1
+printf "with    --: "; basename -- "${selected//./-}" 2>&1
+echo
+echo "===== sed worked outputs (verifying every annotation) ====="
+printf "%-14s -> %s\n" "s/foo/bar/"   "$(printf "%s" "foo foo foo" | sed "s/foo/bar/")"
+printf "%-14s -> %s\n" "s/foo/bar/g"  "$(printf "%s" "foo foo foo" | sed "s/foo/bar/g")"
+printf "%-14s -> %s\n" "s/foo/bar/2"  "$(printf "%s" "foo foo foo" | sed "s/foo/bar/2")"
+printf "%-14s -> %s\n" "s/foo/bar/gI" "$(printf "%s" "FOO Foo foo" | sed "s/foo/bar/gI")"
+echo "-n s///p on lines foo,baz:"; printf "foo\nbaz\n" | sed -n "s/foo/bar/p"
+printf "%-14s -> %s\n" "s|/usr/bin|/bin|" "$(printf "%s" "/usr/bin/env" | sed "s|/usr/bin|/bin|")"
+printf "%-14s -> %s\n" "s#\.tmp\$##(file.tmp)" "$(printf "%s" "file.tmp" | sed "s#\.tmp\$##")"
+printf "%-14s -> %s\n" "s#\.tmp\$##(file.tmp.keep)" "$(printf "%s" "file.tmp.keep" | sed "s#\.tmp\$##")"
+printf "%-14s -> %s\n" "capture(-E)" "$(printf "%s" "alice@example" | sed -E "s/(\w+)@(\w+)/\2 <\1>/")"
+printf "%-14s -> %s\n" "whole &" "$(printf "%s" "hi" | sed "s/.*/[&]/")"
+echo "address /error/ only:"; printf "error foo\nok foo\n" | sed "/error/s/foo/bar/"
+printf "%-14s -> %s\n" "BRE a\\+" "$(printf "%s" "aaa" | sed "s/a\+/X/")"
+printf "%-14s -> %s\n" "ERE a+"  "$(printf "%s" "aaa" | sed -E "s/a+/X/")"
+'
+```
+
+Flag / token legend:
+- `-n`  suppress auto-print of each line (pair with `p` to print selectively).
+- `-E` (== GNU `-r`)  Extended regex: `+ ? | ( ) { }` are operators without backslash.
+- `-e 'c1' -e 'c2'`  several commands in order (or join with `;`).  `-i[SUF]` edits in place.
+- In `s///`:  `g`=all, `p`=print, `I`=ignore-case, a digit `N`=only the Nth match.
+- In REPLACEMENT:  `&`=whole match, `\1`..`\9`=groups; a literal `&` is `\&`.
+
+### BRE vs ERE — why `sed` needs backslashes
+
+`sed` uses **Basic** Regular Expressions by default, where `? + ( ) { } |` are LITERAL
+and must be escaped to gain special meaning. Add `-E` (GNU `-r`) for **Extended**, where
+they're special as-is and a backslash makes them literal — opposite worlds.
+
+```bash
+sed    's/a\+/X/'  # "aaa" -> "X"   BRE: \+ = one-or-more (backslash wakes it)
+sed -E 's/a+/X/'   # "aaa" -> "X"   ERE: + is special by default
+
+# Real case — match an OPTIONAL leading '#' to un-comment a config line:
+sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
+#          #\?  → \? = zero-or-one '#', so it matches BOTH
+#                "PermitRootLogin yes"  AND  "#PermitRootLogin yes"
+
+# BRE metachar map (what needs a backslash):
+# ^ $ . * [abc] [^abc] [0-9] [a-z]  → same in BRE & ERE (no backslash)
+# \?  zero-or-one      \+  one-or-more      \{n,m\}  interval
+# \( \)  grouping      \|  alternation (GNU)         \1 \2  backreferences
+# Rule: in BRE the powerful metachars sleep until a backslash wakes them; in ERE
+# they're awake by default and a backslash puts them to sleep.
+```
+
+Gotchas:
+- **BRE-vs-ERE is the #1 trap** — reach for `-E` and it matches the regex you know.
+- `s///` without `g` = first match per line only.
+- `.` matches ANY char; a literal dot is `\.`.
+- `-i` is destructive: GNU `-i` edits in place, BSD/macOS `sed` needs `-i ''`. Prefer
+  `-i.bak` so there's a reverse (`mv file.bak file`).
+- Greedy only — no lazy `*?`; `.*` grabs as much as it can.
