@@ -7,6 +7,47 @@ tags: []
 
 # Journal
 
+## 2026-08-07 — Sway desktop: full build-out + naysayer theming (multi-turn)
+
+**What we covered.** Stood up a complete sway/Wayland desktop on CachyOS and themed everything to
+naysayer: installed the stack (sway, swaybg, swayidle, swaylock, waybar, fuzzel, foot, wmenu, grim,
+slurp, mako, yazi + preview deps, trash-cli, pavucontrol, blueman), then config'd input (us/ru
+Alt+Shift, flat pointer), idle (screen-off 5m / suspend 15m / lock-before-sleep), screenshots
+(grim+slurp→wl-copy), a fuzzel launcher, yazi (theme/behaviour/opener/keymap), waybar modules +
+naysayer style.css, audio defaults (wpctl), Bluetooth (blueman), and system dark mode.
+
+**Key insight (the gotchas worth keeping).**
+- `bg` is painted by **swaybg** — not installed ⇒ black background regardless of the directive.
+- sway `exec` runs once at session start and is NOT re-run by `reload` (use exec_always, or relog).
+- Criteria selectors summon single-instance apps: `[app_id="…"] move workspace current, focus`.
+- yazi 26.5.6: `[filetype]` keys on **`url`** not `name`; `[manager]`→`[mgr]`; tabs in `[tabs]`;
+  no `hovered` key. Shell template: `%h` path / `%H` url, `--` disables escaping.
+- tmux `-r` = a repeat-window trap for pane nav; and the tmux server freezes `SWAYSOCK`.
+- BT earbuds: A2DP (good output, no mic) XOR HSP/HFP (mic, mono) — never both.
+- Dark mode = a portal setting via gsettings prefer-dark; **Qt is a separate track** (env
+  QT_QPA_PLATFORMTHEME=kde + a dark KDE scheme); WPS ignores all of it.
+- Tray applets via `exec` race waybar → wrap in `sh -c "sleep 3 && …"`.
+
+**What we built/changed.**
+- New configs (now in debian-p10k-zsh/dotfiles/config/): sway, waybar, fuzzel, yazi.
+- nvim-lsp already holds arch/Naysayer.colors + .wezterm.
+- .tmux.conf: prefix work earlier + pane-nav bind fix (dropped `-r`) + update-environment.
+- arch-setup.sh: new §9d — desktop package install + config symlinks (with .bak backup swap).
+- notes-obsidian (NOT yet committed): new sway/waybar/yazi/audio-knowledge.md; tmux-knowledge.md
+  append (SWAYSOCK, -r trap); Anki dev-env-sway-desktop-2026-08-07.tsv (17 cards).
+
+**Findings about this machine.**
+- swaybg was missing (that was the black-bg cause); now installed.
+- No `/sys/class/backlight` device (desktop + HDMI) → brightnessctl can't dim; went screen-off idle.
+- wezterm sends Left-Alt as compose, not Meta → no-prefix Alt binds don't reach tmux.
+- Login manager is Plasma Login Manager (from the prior wrap) — session picker bottom-left.
+
+**Next step to resume.** (1) Run the §9d `for` loop on THIS machine to flip the live ~/.config dirs
+into repo symlinks; commit debian-p10k-zsh + notes-obsidian; import the .tsv. (2) Still pending:
+refine bash-knowledge.md into one `##` section per command (merge the split tar sections; sed/tr
+already sectioned). (3) **NEXT SESSION: implement sway animations** — vanilla sway has none, so this
+means evaluating **swayfx** (drop-in fork: animations, blur, rounded corners, shadows) vs Hyprland.
+
 ## 2026-08-03 — KDE Naysayer scheme, Plasma Login Manager, Sway install, tmux prefix
 
 **What we covered.** KDE colour theming (Colour Scheme vs Plasma Style layers,

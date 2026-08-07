@@ -1398,3 +1398,23 @@ Gotchas:
 - `-i` is destructive: GNU `-i` edits in place, BSD/macOS `sed` needs `-i ''`. Prefer
   `-i.bak` so there's a reverse (`mv file.bak file`).
 - Greedy only — no lazy `*?`; `.*` grabs as much as it can.
+
+## File-test operators — the symlink traps
+
+```bash
+[ -e p ]   # exists (any type)
+[ -f p ]   # regular file        [ -d p ]   # directory
+[ -L p ]   # p is a SYMLINK (true even if the target is missing — tests the link itself)
+[ -s p ]   # exists AND size > 0
+[ -r p ] / [ -w p ] / [ -x p ]   # readable / writable / executable
+```
+
+Gotcha: `-e`, `-f`, `-d` FOLLOW the symlink (they test the target), but `-L` tests the LINK.
+So a symlink → directory is BOTH `-d` true and `-L` true. To match "a REAL dir, not a link":
+
+```bash
+[ -d "$p" ] && [ ! -L "$p" ]    # real directory only (the idempotent-symlink-swap guard)
+```
+A broken symlink (target gone) is `-L` true but `-e` FALSE — `-e` follows the dangling link to nothing.
+
+<!-- Docs: https://www.gnu.org/software/bash/manual/bash.html#Bash-Conditional-Expressions -->

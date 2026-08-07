@@ -138,3 +138,33 @@ ts() {
 
 Key decision: the `$TMUX` branch. Outside tmux, `-A` just attaches. INSIDE tmux, attaching
 would nest a session in a session (tmux warns), so create detached + `switch-client` instead.
+
+## `SWAYSOCK` staleness in a long-lived server
+
+The tmux SERVER captures the environment once, at first start, and hands that frozen copy to every
+pane. sway's IPC socket path embeds sway's PID (`sway-ipc.1000.<PID>.sock`), so relaunching sway
+mints a new socket while tmux keeps pointing at the dead one — `swaymsg` inside tmux then fails with
+`Unable to connect to …sway-ipc…sock`, though it works in a fresh (non-tmux) shell.
+
+```tmux
+# Durable fix: refresh these from the attaching client on attach. -g global, -a APPEND (keep tmux's
+# defaults, which already carry DISPLAY/SSH_*). Then DETACH + REATTACH (only new panes get refreshed).
+set -ga update-environment "SWAYSOCK"
+set -ga update-environment "WAYLAND_DISPLAY"
+```
+Immediate fix without the above: `tmux kill-server` and restart inside the live sway session.
+
+## Pane nav: `-r` is a repeat-window trap
+
+`bind -r` marks a binding REPEATABLE — after it fires, tmux stays in a `repeat-time` window (default
+500 ms) where a BARE `h/j/k/l` re-triggers *without* the prefix. So `prefix k` then `h` reads the `h`
+as "repeat → go left", bouncing you back. For one move per prefix, use plain `bind`:
+
+```tmux
+bind h select-pane -L   ;  bind j select-pane -D
+bind k select-pane -U   ;  bind l select-pane -R
+```
+(No-prefix `bind -n M-h …` was dead separately: wezterm sends Left-Alt as a *compose* key, not Meta,
+unless `send_composed_key_when_left_alt_is_pressed = false`.)
+
+<!-- Docs: https://man.archlinux.org/man/tmux.1 -->

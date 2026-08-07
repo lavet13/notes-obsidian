@@ -1,0 +1,59 @@
+#separator:Tab
+#html:false
+#notetype:Basic
+#deck:Dev
+#tags column:3
+"sway: what's the difference between `exec` and `exec_always`, and why doesn't a new `exec` line start on reload?"	"exec = run ONCE at session start. exec_always = run at start AND on every `reload`.
+`reload` does NOT re-fire `exec` lines, so a newly-added `exec foo` needs logout/in
+or a manual run. (exec_always dups the process each reload unless you guard it.)"	"dev-env sway"
+"sway: `$mod+a` seems to lose window focus — what did it do, and how do you get back?"	"$mod+a = `focus parent`: climbs the container TREE to the group holding your window
+(to retile/move the group as a unit). Descend again with any focus <dir>, or bind
+`focus child` ($mod+Shift+a)."	"dev-env sway"
+"sway: an app opens on another workspace and relaunching just focuses it there. Pull it to the current workspace?"	"Single-instance apps relaunch to focus, not respawn. Summon via a criteria selector:
+  swaymsg '[app_id=""org.telegram.desktop""] move workspace current, focus'
+Get app_id from: swaymsg -t get_tree"	"dev-env sway"
+"sway: you set `output * bg #062625 solid_color` but the empty workspace is BLACK. Why?"	"`bg` is painted by swaybg (optional dep). Not installed ⇒ every background is black,
+directive or not. Install swaybg. (Also: two `bg` lines for `*` → the last one wins.)"	"dev-env sway"
+"sway: high-refresh monitor runs at 60 Hz — how do you pin the rate?"	"sway takes the output's default mode. List modes with `swaymsg -t get_outputs`, then:
+  output HDMI-A-1 mode 1920x1080@200Hz"	"dev-env sway"
+"sway idle: 5-min screen off, 15-min suspend, lock before sleep — swayidle shape?"	"exec swayidle -w \
+  timeout 300 'swaymsg ""output * power off""' resume 'swaymsg ""output * power on""' \
+  timeout 900 'systemctl suspend' \
+  before-sleep 'swaylock -f -c 000000'
+-w = finish each cmd first; resume pairs with the timeout ABOVE it. 'power off' is DPMS
+(binary, no % dim — a % dim needs brightnessctl/backlight or ddcutil)."	"dev-env sway idle"
+"Wayland system dark mode with no DE — the one lever, and why Qt apps ignore it?"	"gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'  (needs xdg-desktop-portal-gtk).
+Broadcasts via the FreeDesktop portal → Firefox/Chrome/Electron/GTK4 follow.
+Qt is a SEPARATE track: set QT_QPA_PLATFORMTHEME=kde in ~/.config/environment.d + a dark
+KDE scheme (plasma-apply-colorscheme). WPS ignores everything (own skin)."	"dev-env sway dark-mode"
+"PipeWire: set a default output/input device, and does it persist?"	"wpctl status  → note the Sink/Source ID (* = current default).
+wpctl set-default <ID>   (reads node type; same cmd for sink or source)
+WirePlumber persists the CHOICE per-device across reboots/reconnects (the numeric ID changes)."	"dev-env audio"
+"Bluetooth earbuds: why can't you have good audio AND use their mic at once?"	"BT exposes EITHER A2DP (good stereo playback, no mic) OR a headset profile HSP/HFP
+(mic, but mono call-quality output) — never both. Switch with:
+  pactl set-card-profile bluez_card.XX headset-head-unit   (mic on)
+  pactl set-card-profile bluez_card.XX a2dp-sink           (good output back)"	"dev-env audio bluetooth"
+"waybar: how do you drop a module, and why do clicks on some modules do nothing?"	"Remove the module NAME from modules-left/center/right — its config block goes dormant
+(no need to delete it). A module reacts to clicks ONLY if given `on-click`; otherwise
+it's status text, not a button."	"dev-env waybar"
+"waybar: reload after editing style.css/config without restarting sway?"	"killall -SIGUSR2 waybar   # re-reads config + style.css in place.
+style.css is GTK3 CSS: @define-color for the palette, .class = live state (#network.disconnected),
+box-shadow inset 0 -3px = the underline trick (no layout shift)."	"dev-env waybar"
+"A tray applet (arch-update, blueman) launched by sway `exec` never appears in waybar's tray. Fix?"	"Race: it docks before waybar's tray module exists. Delay it:
+  exec sh -c ""sleep 3 && arch-update --tray"""	"dev-env waybar sway"
+"yazi: a `[filetype]` rule using `name` errors. What's the right key, and how do you match all dirs?"	"In yazi (26.x) filetype rules key on `url` (path glob) or `mime`, NOT `name` (`name` is
+the [icon] section's key). url = ""*"" → all files, url = ""*/"" → all directories.
+Rules match top-to-bottom, first hit wins → keep the catch-all url=""*"" LAST."	"dev-env yazi"
+"yazi keymap: shell template placeholders for the hovered file, and how to avoid escaping?"	"%h = hovered PATH, %H = hovered URL (file://…), %s/%S = selected paths/URLs.
+A trailing `--` disables escaping (everything after is raw). e.g. copy file as uri-list:
+  run = '''shell -- printf '%s' ""%H"" | wl-copy -t text/uri-list'''"	"dev-env yazi clipboard"
+"yazi: what do `d` and `D` do, and where do trashed files go / how to recover?"	"d = move to trash (FreeDesktop → ~/.local/share/Trash/, recoverable).
+D = permanently delete (confirmation).
+Recover/destroy with trash-cli: trash-list, trash-restore, trash-empty / trash-rm."	"dev-env yazi"
+"tmux: after a sway restart, swaymsg inside tmux fails with 'Unable to connect to …sway-ipc…sock'. Why + fix?"	"A long-lived tmux SERVER froze the env at first start; sway's IPC socket path embeds sway's
+PID, and a sway restart made a new one → the inherited SWAYSOCK is stale.
+Now: tmux kill-server (re-inherits). Durable: set -ga update-environment ""SWAYSOCK""
+(and WAYLAND_DISPLAY), then detach+reattach."	"dev-env tmux sway"
+"tmux: `bind -r k select-pane -U` then pressing `h` jumps back to the previous pane. Why, and the fix?"	"-r = repeatable: after the bind, tmux stays in a repeat-time window where a BARE hjkl re-fires
+without the prefix — so the `h` is read as 'repeat, go left'. Drop -r: use plain
+`bind h select-pane -L` … for exactly one move per prefix."	"dev-env tmux"

@@ -94,8 +94,12 @@ agentic code generator.
   rendering hazard: two of them pair into a math span and silently reflow everything between
   (spaces collapse, `*`/`_` turn into math operators). Never leave a bare `$` in prose — put
   shell variables, positional params, and any literal dollar sign inside fenced code blocks
-  (reliably exempt from math parsing) or spell them out. (real case: `!$` in a prose list
-  paired with a later `$` and math-rendered a whole paragraph into run-together italics.)
+  (reliably exempt from math parsing) or spell them out. (real case: Inline code (single backticks)
+  is NOT a safe harbour — the math parser still pairs `$` across and inside inline spans; only FENCED
+  (triple-backtick) blocks are reliably exempt. So any $-bearing token in prose goes in a fenced block
+  or gets spelled out ("the mod key", "the selected variable") — never inline-backticked.
+  (real cases: `!$` in a prose list math-rendered a paragraph; and across a long sway session,
+  inline-backticked `$mod` / `${var//./-}` garbled repeatedly, flagged three times before it stuck.))
 
 # Progress, handoffs & reference
 
