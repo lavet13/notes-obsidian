@@ -147,3 +147,29 @@ auto-runs under it unless you `exec` it. They interact ONLY through shared on-di
 
 Rule: share theme/env files (deliberate), keep startups in the sway config, never run plasmashell/kwin under sway.
 
+## Default apps (xdg-mime / mimeapps.list)
+
+`xdg-open <file>` chooses the app from the file's MIME type → that type's default `.desktop` handler.
+Fix "opens in the wrong app" by reassigning the type. NOTE: this governs `xdg-open` (yazi, file
+managers, terminal) — some apps (Telegram Desktop) have their OWN open logic and ignore it.
+
+```bash
+xdg-mime query filetype file.xlsx     # print the file's MIME type
+xdg-mime query default  <mimetype>    # print the .desktop that currently handles that type
+xdg-mime default wps-office-et.desktop <mimetype> [<mimetype>...]   # reassign the default
+```
+
+- `query filetype <file>` — reports the MIME type by content/extension (e.g. xlsx →
+  `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`). You need this to know
+  which type to reassign.
+- `query default <mimetype>` — reports which `.desktop` wins for that type right now (the diagnosis:
+  if it says `firefox.desktop`, that's why it opens in the browser).
+- `default <desktop> <mimetype…>` — sets the handler. It **writes to `~/.config/mimeapps.list`**
+  (your personal file), which OVERRIDES system-wide defaults — so it sticks per-user and survives
+  updates. You can pass several MIME types in one call to cover xlsx/xls/ods/csv together.
+
+Gotcha: a duplicate entry under `[Default Applications]` in `~/.config/mimeapps.list` OR
+`~/.local/share/applications/mimeapps.list` can shadow your change — dedupe if a type still
+mis-routes. WPS desktops: `wps-office-et` (Sheets), `-wps` (Writer), `-wpp` (Presentation).
+
+<!-- Docs: https://wiki.archlinux.org/title/XDG_MIME_Applications -->

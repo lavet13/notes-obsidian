@@ -168,3 +168,32 @@ bind k select-pane -U   ;  bind l select-pane -R
 unless `send_composed_key_when_left_alt_is_pressed = false`.)
 
 <!-- Docs: https://man.archlinux.org/man/tmux.1 -->
+
+## Open a URL from a pane (no mouse)
+
+`prefix + u` → fzf-pick any URL in the pane (including scrollback) and open it via xdg-open.
+
+```tmux
+bind u display-popup -E "tmux capture-pane -J -p -S -3000 | grep -oE 'https?://[^ ]+' | sort -u | fzf --reverse | xargs -r xdg-open"
+```
+
+- `display-popup -E "…"` — open a floating popup running the command; **`-E`** closes the popup
+  automatically as soon as the command exits (without it the popup lingers showing a dead shell).
+- `capture-pane` — dump the pane's text so we can grep it:
+  - **`-J`** join wrapped lines — a long URL soft-wrapped across two rows is captured as ONE line,
+    so grep sees the whole URL instead of two broken halves.
+  - **`-p`** print the capture to stdout (the pipe) instead of into a tmux paste-buffer.
+  - **`-S -3000`** set the start line 3000 rows back into the scrollback, so it searches history,
+    not just the visible screen. (`-S -` would mean "the very top"; a number caps the cost.)
+- `grep -oE 'https?://[^ ]+'` — pull the URLs out:
+  - **`-o`** print ONLY the matched URL, not the whole line it sat on.
+  - **`-E`** extended regex, so `?`, `+`, `|` work unescaped (`https?` = the "s" is optional).
+- `sort -u` — **`-u`** unique: collapse duplicate URLs so the picker lists each once.
+- `fzf --reverse` — **`--reverse`** draws the prompt at the top and results below (top-down),
+  which reads naturally in a small popup.
+- `xargs -r xdg-open` — feed the picked URL to xdg-open; **`-r`** ("no-run-if-empty") means if you
+  Esc out of fzf and nothing is selected, xdg-open is NOT run with an empty arg (avoids an error).
+
+Also: **Shift+click** a link bypasses tmux's `mouse on` capture → wezterm's own URL handler opens it.
+
+<!-- Docs: https://man.archlinux.org/man/tmux.1 -->
