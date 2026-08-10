@@ -7,6 +7,40 @@ tags: []
 
 # Journal
 
+## 2026-08-10 — yazi Lua plugin + Lua from scratch (multi-turn tail of the sway migration)
+
+**What we did.** Finished the yazi multi-file URI copy as a proper **Lua plugin** (verified working:
+5-file select → Y → clipboard uri-list + notification). Got there by ruling out, with evidence, both
+the `%s`/`%H` placeholders (paths, not URIs; don't expand the selection) AND env vars (yazi only
+exports YAZI_LEVEL/YAZI_ID) — the API (`ya.sync` + `cx.active.selected`) is the only correct route.
+Also: taught Lua from zero (TS-mapped), swapped fonts toward CaskaydiaMono (no ligatures), and sorted
+Chromium theming (QT theme = dark+Naysayer; GTK-dark is a fiddly Chromium corner, use QT).
+
+**Key insight — teaching calibration (important for next session).** Ivan's Lua level is **zero**
+(his words) — but he's a strong TS/JS dev, so TS-mapped, line-by-line explanation lands well and he
+asks excellent "why" questions (pairs vs ipairs, colon vs dot / implicit self, positional vs named
+table entries, why `ya.sync`). ONE caveat: he's also shaky on the **JS async/concurrency model
+itself**, so DON'T explain via Web Workers / postMessage — that confused him. The plain "wall between
+two workers, ya.sync is a hatch" framing worked. Build Lua concurrency from first principles, not JS
+analogies.
+
+**Delivered (to commit).** notes-obsidian: new `lua-knowledge.md` (TS→Lua map + the copy-uri plugin
+line-by-line), `bash-knowledge.md` append (grep -rIl | xargs -r sed bulk-replace), Anki
+`dev-env-lua-shell-2026-08-09.tsv` (7 cards). Plugin itself lives at
+`~/.config/yazi/plugins/copy-uri.yazi/main.lua` + `copy-uri.sh` (tracked via the symlinked yazi config).
+
+**Owed / deferred.** (1) arch-update tray terminal → wezterm: `arch-update.conf` has NO terminal key,
+`xdg-terminal-exec` not installed — needs digging its detection order or a TERMINAL env test.
+(2) Confirm the CaskaydiaMono font swap landed (pending `pacman -Ss cascadia` result).
+(3) Chromium GTK-dark left on the QT-theme workaround.
+
+**Next session (Ivan's pick): build a yazi plugin from the catalog as Lua practice.** He wants hands-on
+Lua. Beginner-friendly targets seen in the catalog: `smart-paste`, `chmod`, `mime-ext`, `full-border`,
+`no-status`, `toggle-pane`, `git.yazi`, `vcs-files`, `mount`, `piper`, `zoom`, `lsar`. Pick ONE small
+one and build it line-by-line as a continued Lua lesson (a bookmarks/quick-jump plugin or
+reimplementing `no-status`/`full-border` are good first builds). ALSO still pending from earlier:
+**swayfx vs Hyprland for animations** — he's now keener on the Lua/plugin thread, so lead with that.
+
 ## 2026-08-07 — Sway desktop: full build-out + naysayer theming (multi-turn)
 
 **What we covered.** Stood up a complete sway/Wayland desktop on CachyOS and themed everything to

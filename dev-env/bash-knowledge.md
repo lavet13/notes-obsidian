@@ -1418,3 +1418,17 @@ So a symlink → directory is BOTH `-d` true and `-L` true. To match "a REAL dir
 A broken symlink (target gone) is `-L` true but `-e` FALSE — `-e` follows the dangling link to nothing.
 
 <!-- Docs: https://www.gnu.org/software/bash/manual/bash.html#Bash-Conditional-Expressions -->
+
+## Bulk find-and-replace across a repo
+
+```bash
+grep -rIl --exclude-dir=.git 'OLD' path/ | xargs -r sed -i 's/OLD/NEW/g'
+```
+- `grep`: **-r** recurse, **-I** skip binary files, **-l** print only the FILENAMES that match
+  (not the lines), **--exclude-dir=.git** skip history.
+- `xargs` feeds those filenames as arguments to `sed -i` (edit in place). **-r**
+  (`--no-run-if-empty`): if grep found nothing, don't run sed at all — otherwise sed runs with no
+  file and errors.
+- Re-run the bare `grep -rIn 'OLD'` after to confirm zero matches remain.
+
+<!-- Docs: https://www.gnu.org/software/findutils/manual/html_node/find_html/xargs-options.html -->
