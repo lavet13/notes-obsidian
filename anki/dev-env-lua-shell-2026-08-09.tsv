@@ -1,0 +1,35 @@
+#separator:Tab
+#html:false
+#notetype:Basic
+#deck:Dev
+#tags column:3
+"Lua: what's the difference between `M.f(x)` and `M:f(x)` when defining/calling?"	"Colon = METHOD with an implicit `self` (like `this`): M:f(1) == M.f(M, 1) — the table is auto-passed
+as the first arg. Dot = plain function, no self. So `function M:preload(job)` has a hidden `self`
+plus `job`."	"dev-env lua"
+"Lua: `pairs` vs `ipairs` — what each iterates, and which for an ordered array?"	"pairs(t): ALL key/value pairs, any key type, NO order guarantee.
+ipairs(t): only integer keys 1,2,3… IN ORDER, stops at the first nil.
+Use ipairs for a sequential array where order matters (e.g. a list you built with table.insert);
+pairs for a general dictionary/set."	"dev-env lua"
+"Lua: a table like `{ cmd, confirm = true }` — how does a function read positional vs named entries?"	"A table is array AND object at once. Entries with no `key =` get auto-indices 1,2,3 (the array part =
+POSITIONAL); entries with `key = value` are the hash part (NAMED). ya.emit(""shell"", { cmd, confirm=true })
+reads cmd as positional [1] and confirm as a named option."	"dev-env lua"
+"yazi plugin: why wrap selection-reading in `ya.sync(...)`, and how do you access `cx`?"	"The plugin `entry` runs in a background async worker; the live state (cx) lives on the MAIN thread.
+ya.sync(fn) runs fn ON the main thread and returns the result — so cx is valid inside it. cx/ya are
+AMBIENT globals (like window/process) — not declared, not passed as params."	"dev-env lua yazi"
+"yazi plugin: read the hovered-or-selected files' paths?"	"local get = ya.sync(function()
+  local t = {}
+  if #cx.active.selected ~= 0 then
+    for _, u in pairs(cx.active.selected) do t[#t+1] = tostring(u) end
+  elseif cx.active.current.hovered then
+    t[1] = tostring(cx.active.current.hovered.url)
+  end
+  return t
+end)
+tostring() converts a Url userdata to a path string."	"dev-env lua yazi"
+"yazi plugin: how do you debug/print a value (console.log equivalent)?"	"print() is invisible (TUI owns the screen). Use ya.dbg(value) → writes to the log (tables too),
+or ya.notify({...}) for a popup. Read the log with:
+  YAZI_LOG=debug yazi   ; then   tail -f ~/.local/state/yazi/yazi.log"	"dev-env lua yazi"
+"Bash: replace a string across every file in a repo in one command?"	"grep -rIl --exclude-dir=.git 'OLD' path/ | xargs -r sed -i 's/OLD/NEW/g'
+grep: -r recurse, -I skip binaries, -l print only FILENAMES with a match, --exclude-dir=.git skip history.
+xargs feeds those filenames to sed -i (in place). xargs -r = --no-run-if-empty: if grep found nothing,
+DON'T run sed at all (else sed errors with no file)."	"dev-env bash"

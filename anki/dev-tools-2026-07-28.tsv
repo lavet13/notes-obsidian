@@ -1,0 +1,37 @@
+#separator:Tab
+#html:false
+#notetype:Basic
+#deck:Dev
+#tags column:3
+"mysql CLI — run one statement without entering the `mysql>` prompt? (and which flag belongs to `mysql` vs `docker`)"	"-e / --execute belongs to the mysql CLIENT, not docker. Runs the SQL and exits
+(no interactive prompt). Multiple statements separated by ;
+
+  docker compose exec mysql mysql -u root -padmin mydb -e ""SHOW TABLES;""
+                       (service)  (client)             (mysql's flag)
+
+Non-interactive output is TAB-separated. For the ASCII grid add -t/--table;
+for vertical rows end the statement with \G instead of ;"	"dev-env mysql cli"
+"mysql CLI — why does `-pPASS` warn ""Using a password on the command line ... can be insecure"", and the clean fix?"	"The literal password on the command line is visible to other users via the
+process table (ps -ef) and lands in shell history. In a throwaway dev container
+it's low-stakes — safe to ignore.
+
+Clean fix: put it in ~/.my.cnf so the flag disappears —
+  [client]
+  password=...
+then  chmod 600 ~/.my.cnf   (owner-only, or the client refuses to use it)"	"dev-env mysql security"
+"`docker compose exec` — what does `-T` do, and when do you need it?"	"-T disables the pseudo-TTY that exec allocates by default. That default TTY
+fights a redirected/piped stdin -> ""the input device is not a TTY"", or the input
+is silently unread.
+
+Rule: piping/redirecting a file IN -> use -T; wanting the interactive prompt -> omit it.
+
+  docker compose exec -T mysql mysql -u root -p db < schema.sql   # -T (piped file)
+  docker compose exec    mysql mysql -u root -p db                # no -T (interactive)"	"dev-env docker compose"
+"Wayland — copy a file's contents to the clipboard from the shell (and read it back)?"	"wl-clipboard provides wl-copy / wl-paste (Wayland; KDE Plasma).
+
+  wl-copy < file.txt      # reads stdin -> clipboard (the < feeds the file in)
+  wl-paste                # prints clipboard to stdout
+  wl-paste > out.txt      # dump clipboard into a file
+  wl-copy --primary       # target the middle-click ""primary"" selection instead
+
+(To DUPLICATE a file rather than grab its text, that's just:  cp src dst)"	"dev-env clipboard wayland"

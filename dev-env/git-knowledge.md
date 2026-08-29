@@ -120,3 +120,110 @@ last, and never on anything you've pushed.
 - Undo a commit that's already PUSHED → `git revert <commit>` (new inverse commit).
 - Undo a LOCAL commit, keep the work → `git reset --soft/--mixed HEAD~1`.
 - Nuke a local commit and its changes → `git reset --hard HEAD~1`.
+
+## Fork workflow: `origin` vs `upstream`
+
+Convention: `origin` = YOUR fork (push here), `upstream` = the source repo (pull from here).
+A direct clone of someone else's repo has `origin` on THEIR repo — fix it before contributing:
+
+```bash
+git remote rename origin upstream                 # their repo → 'upstream'
+git remote add origin git@github.com:ME/REPO.git  # my fork → 'origin'
+git remote -v                                     # verify fetch/push urls per remote
+```
+
+Sync my fork's main with upstream later (run FROM main — pull acts on the CURRENT branch):
+
+```bash
+git switch main
+git fetch upstream                 # download upstream's commits, no merge yet
+git pull --ff-only upstream main   # fast-forward only (see `pull --ff-only`); refuse on divergence
+git push origin main               # push synced main to my fork
+```
+
+Forks start with NO Actions secrets and workflows disabled — deliberate, so a fork can't push to
+the source's registry.
+
+## force-with-lease vs force (safe history rewrite)
+
+Rewriting a commit (amend/rebase) makes a NEW hash; the remote still has the old one, so a plain
+`git push` is rejected (non-fast-forward). Force is required — use the lease variant:
+
+```bash
+git push --force-with-lease   # overwrite ONLY if remote still points where I last fetched
+git push --force              # overwrite unconditionally — can clobber someone else's push
+```
+
+`--force-with-lease` aborts if the remote moved since my last fetch, so it can't silently destroy
+work. Timing rule once a PR exists:
+- BEFORE review / no PR yet → amend + `--force-with-lease` (keep one tidy commit).
+- AFTER review starts → ADD a new commit + plain `git push`; rewriting breaks an in-progress review.
+Only ever rewrite a branch that's exclusively mine.
+
+## Splitting one commit into several
+
+Dissolve the commit but keep every change, then re-commit in groups:
+
+```bash
+git reset --soft HEAD~1     # undo commit; changes stay STAGED, nothing lost
+git restore --staged .      # unstage → changes now in the working tree
+git add -p <file>           # stage only the hunks for change #1 (see `git add -p`)
+git commit -m "fix: ..."    # commit #1
+git add -A                  # everything remaining
+git commit -m "feat: ..."   # commit #2
+```
+
+Verify: `git log --oneline -2`, then `git show --stat HEAD~1`. Reverse if pushed: history rewrite
+→ `git push --force-with-lease`.
+
+## Staging selectively: `git add -p`
+
+Walks each changed HUNK and asks whether to stage it. Prompt keys:
+- `y` stage hunk / `n` skip
+- `s` SPLIT into smaller hunks (only if an unchanged line separates the changes)
+- `e` EDIT by hand — delete the `+`/`-` lines you don't want, keep the rest
+- `q` quit
+Fugitive equivalent: in `:Git` status, `=` expands a file's diff, then `s` on a hunk (or
+visual-select lines + `s`).
+
+## Cherry-pick a commit onto another branch
+
+Copies a commit (by hash) onto wherever HEAD is — good for lifting one commit onto a fresh branch:
+
+```bash
+git switch -c fix/login-type main   # new branch off main
+git cherry-pick 581849d             # replay just that commit here
+```
+
+Stacking: a commit that depends on an earlier one branches off THAT branch, not bare main — else
+it conflicts with / duplicates the missing prerequisite.
+
+## `rebase --onto`: move only the commits AFTER a cutoff
+
+Plain `git rebase <newbase>` replays every commit since the MERGE BASE (common ancestor) — in a
+stacked branch that wrongly includes a commit already merged upstream.
+
+`git rebase --onto <newbase> <cutoff> [branch]` sets the cutoff manually:
+- `<newbase>` = where commits land
+- `<cutoff>`  = commits up to AND INCLUDING this are EXCLUDED
+
+```bash
+# feat branched off fix; fix already merged into upstream main.
+# Replay ONLY feat's own commits onto the new main, dropping the redundant fix:
+git rebase --onto main fix/login-type feat/token-refresh
+```
+
+Without `--onto`, plain rebase replays `fix` too and collides with the merged copy.
+
+## Renaming a branch (local + remote)
+
+A branch name is local; the remote isn't "renamed" — push the new name, delete the old:
+
+```bash
+git branch -m new-name              # rename current (-M forces over an existing name)
+git push origin --delete old-name   # remove the stale branch from the fork
+git push -u origin new-name         # push new name + set tracking (first push of this name)
+```
+
+Gotcha: renaming a branch that has an OPEN PR CLOSES that PR (GitHub ties the PR to the branch
+name). Rename BEFORE opening the PR, or expect to reopen.

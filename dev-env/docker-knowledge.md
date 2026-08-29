@@ -145,3 +145,28 @@ cat db-YYYY-MM-DD.sql | docker exec -i -e MYSQL_PWD=<pw> <mysql_container> mysql
 
 - The old (non-BuildKit) builder is deprecated. Install buildx so BuildKit is default:
   sudo pacman -S docker-buildx # reverse: sudo pacman -R docker-buildx
+
+## `docker-compose.override.yaml` (auto-merge, no `-f`)
+
+Compose auto-loads two filenames with no flag: reads `docker-compose.yaml`, then MERGES
+`docker-compose.override.yaml` on top. Use the override for LOCAL-only tweaks so the tracked base
+file stays untouched (gitignore the override):
+
+```yaml
+# docker-compose.override.yaml — build MY code instead of pulling the published image
+services:
+  app:
+    build: .
+    image: app:local
+```
+`docker compose up -d --build` merges base + override automatically.
+
+## `build` + `image` together: builds locally, tags with the image name
+
+With BOTH keys, Compose builds from `build:` and TAGS the result with `image:`. So base
+`image: vendor/app:latest` + an override adding only `build: .` → builds YOUR code but stamps it
+`vendor/app:latest`, shadowing the published image under that tag locally. Override the `image:`
+scalar too (override scalars REPLACE base scalars) to give your build its own name (`app:local`),
+keeping the vendor tag reserved for what you actually `pull`.
+Registry PUSH is separate — Compose only builds+tags locally; publishing is `docker push`, usually
+via CI with registry secrets (a fork has none by default).

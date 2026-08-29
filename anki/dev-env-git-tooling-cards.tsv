@@ -1,0 +1,56 @@
+#separator:Tab
+#html:false
+#notetype:Basic
+#deck:Dev
+#tags column:3
+"Git: fork remote convention — what should `origin` and `upstream` point to, and how do you fix a direct clone of someone else's repo?"	"origin = YOUR fork (push here); upstream = the source repo (pull here). After a direct clone (origin = their repo):
+
+git remote rename origin upstream
+git remote add origin git@github.com:ME/REPO.git
+
+Sync your fork's main from upstream (ON main, not a feature branch — pull acts on the current branch):
+git fetch upstream && git pull --ff-only upstream main && git push origin main"	"dev-env git fork"
+"Git: why does rewriting a commit (amend/rebase) need a force-push, and which force flag is safe?"	"A rewrite makes a NEW commit hash; the remote still has the old one, so plain push is rejected (non-fast-forward). Use:
+
+git push --force-with-lease
+
+The lease aborts if the remote moved since your last fetch (someone else pushed); plain --force clobbers unconditionally. Always prefer --force-with-lease."	"dev-env git force-push"
+"Git: amend a pushed commit vs add a new one — which, relative to PR review?"	"BEFORE review / no PR yet: amend + git push --force-with-lease (keeps one tidy commit).
+AFTER review starts: ADD a new commit + plain git push. Rewriting history breaks an in-progress review and comment anchoring.
+Only rewrite branches that are exclusively yours."	"dev-env git amend"
+"Git: split the last (single) commit into two separate commits — the sequence?"	"git reset --soft HEAD~1     # undo commit, changes stay staged
+git restore --staged .      # unstage -> changes in working tree
+git add -p <file>           # stage only hunks for change #1
+git commit -m ""fix: ...""
+git add -A
+git commit -m ""feat: ...""
+
+Verify: git log --oneline -2 ; git show --stat HEAD~1. Reverse if pushed: git push --force-with-lease"	"dev-env git split-commit"
+"Git: `git add -p` prompt — what do y / n / s / e do?"	"y = stage this hunk; n = skip it; s = SPLIT into smaller hunks (only if an unchanged line separates the changes); e = EDIT by hand (delete the +/- lines you don't want, keep the rest); q = quit. Lets you commit one logical change out of a file holding several."	"dev-env git add-p"
+"Git: cherry-pick a commit onto a fresh branch — command and the stacking caveat?"	"git switch -c fix/login-type main   # branch off main
+git cherry-pick <hash>              # replay that commit here
+
+Stacking: a commit that depends on an earlier one must branch off THAT branch, not bare main — else it conflicts with / duplicates the missing prerequisite."	"dev-env git cherry-pick"
+"Git: what does `git rebase --onto <newbase> <cutoff> [branch]` do, and why not plain rebase?"	"Replays only commits AFTER <cutoff> onto <newbase>. Plain `git rebase <newbase>` uses the merge-base and replays every commit since the common ancestor — in a stacked branch that wrongly includes a commit already merged upstream, causing a collision.
+
+Ex (feat stacked on fix; fix already merged):
+git rebase --onto main fix/login-type feat/token-refresh"	"dev-env git rebase"
+"Git: rename a branch locally and on the remote — commands and the PR gotcha?"	"git branch -m new-name              # rename current (-M forces over existing)
+git push origin --delete old-name
+git push -u origin new-name         # push new name + set tracking
+
+Gotcha: renaming a branch with an OPEN PR closes that PR (GitHub ties the PR to the branch name). Rename before opening the PR."	"dev-env git branch"
+"Docker Compose: what does `docker-compose.override.yaml` do, and does it need `-f`?"	"No -f needed. Compose auto-reads docker-compose.yaml, then MERGES docker-compose.override.yaml on top. Use it for local-only tweaks so the tracked base file stays clean (gitignore the override). `docker compose up -d --build` picks it up automatically."	"dev-env docker compose"
+"Docker Compose: a service with both `build:` and `image:` — what happens?"	"Compose builds from build: and TAGS the result with the image: name. So base `image: vendor/app:latest` + an override adding only `build: .` -> builds YOUR code but stamps it vendor/app:latest, shadowing the published image locally. Override the image: scalar too (e.g. app:local) so your build gets its own name."	"dev-env docker compose"
+"Poetry: `virtualenvs.in-project true` is set but `.venv` never appears and install says 'No dependencies to install or update' — why, and the two gotchas?"	"The config only applies when Poetry CREATES a venv; an existing cache venv gets reused. Force a rebuild:
+
+poetry env remove --all
+rm -rf .venv ""$(poetry config virtualenvs.path)/<name>""
+poetry install --with dev
+
+BIGGER GOTCHA: if VIRTUAL_ENV is set in the shell, Poetry uses it and ignores in-project entirely — unset VIRTUAL_ENV first."	"dev-env poetry venv"
+"pyright: `reportMissingImports` for installed deps — how do you point it at a project venv?"	"Add pyrightconfig.json at repo root:
+
+{ ""venvPath"": ""."", ""venv"": "".venv"" }
+
+venvPath = dir containing the venv, venv = its folder name. The file is also a pyright root marker (pins workspace root). Restart the LSP (:LspRestart). Keep it gitignored — local env layout, not project code."	"dev-env pyright venv"
