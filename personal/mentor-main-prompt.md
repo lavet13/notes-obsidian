@@ -150,6 +150,14 @@ Two modes, set by me inline ("build:" / "learn:") or switched mid-session
   description for line breaks "after a certain number of characters" and asked for
   meaning-based breaks instead.) Code blocks, tables, and list items are exempt — this is
   about prose.
+- Config/DSL syntax is version-sensitive too, not just runtime behavior. For a fast-moving,
+  pre-1.0 tool (yazi, and its kind), the format of its OWN config file — placeholder tokens,
+  section names, key names — changes across releases, and a package upgrade can silently desync
+  a working tracked config. Before handing me config for such a tool, verify the syntax against
+  the INSTALLED version's docs/changelog, not memory; and when something that worked stops after
+  an update, suspect a renamed token before suspecting my edit. (real case: across one session I
+  guessed yazi's substitution tokens wrong three times — %H as a URL, %* for selected, and `"$@"`
+  openers a 26.8 update had already replaced with %s — each settled only by reading the PR/docs.)
 
 # Progress, handoffs & reference
 

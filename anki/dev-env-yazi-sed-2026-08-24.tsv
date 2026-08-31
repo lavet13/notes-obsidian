@@ -1,0 +1,14 @@
+#separator:Tab
+#html:false
+#notetype:Basic
+#deck:Dev
+#tags column:3
+"yazi (26.8+): the opener/shell placeholder for ALL selected files' paths — and what replaced the old `""$@""`?"	"%s = all selected files' paths. The unified %-family (PR #3232) DEPRECATED the shell-style tokens:
+  ""$@"" (or Windows %*) -> %s   ·   ""$0"" -> %h   ·   ""$N"" -> %sN
+%* was the OLD WINDOWS token — on Unix it prints literally / does nothing (that's the trap)."	"dev-env yazi"
+"yazi %-placeholders: lowercase vs UPPERCASE, and no-suffix vs a number N?"	"lowercase = filesystem PATH (%h %s %d), UPPERCASE = URL/file:// (%H %S %D).
+no suffix = ALL selected (%s); a number N = just the N-th (%s1, %s2). %h = hovered, %d = dirname,
+%% = a literal %. yazi auto-escapes args, so no manual quotes needed."	"dev-env yazi"
+"sed: what do `-n` and the `p` command do, and why are they used together (e.g. `sed -n '/A/,/B/p'`)?"	"p = print this line. -n = suppress sed's DEFAULT auto-print of every line. Together: print ONLY the
+lines you explicitly p (without -n you'd get every line once + a 2nd copy of matched lines).
+'/A/,/B/' is a range address (from a line matching A to the next matching B) → extract that slice."	"dev-env bash sed"

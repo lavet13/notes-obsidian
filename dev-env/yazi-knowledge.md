@@ -68,3 +68,36 @@ d  trash    D  delete-perma    a create (end / = dir)   r rename    .  toggle hi
 o/Enter open (matched rule)    O open-with        Tab spot info    q quit   ~ help
 gg / G   top / bottom          -  leave dir       Enter/l enter dir
 ```
+
+## Shell/opener placeholders (%-family) — 26.8+
+
+yazi ≥ 26.8 (PR #3232) unified opener + `shell`-command substitution on a `%`-family, and DEPRECATED
+the old shell-style tokens. lowercase = filesystem PATH, UPPERCASE = URL (file://…). No suffix = all
+selected; a number N = just the N-th. yazi ESCAPES args automatically → no manual quotes needed.
+
+| token | expands to                              | token | (URL form)                     |
+|-------|------------------------------------------|-------|--------------------------------|
+| `%h`  | hovered file's PATH                      | `%H`  | hovered file's URL             |
+| `%s`  | all SELECTED files' paths                | `%S`  | all selected files' URLs       |
+| `%sN` | N-th selected file's path (`%s1`,`%s2`…) | `%SN` | N-th selected file's URL       |
+| `%d`  | dirnames of selected files               | `%D`  | dirnames as URLs               |
+| `%dN` | N-th selected file's dirname             | `%DN` | N-th dirname as URL            |
+| `%%`  | a literal `%`                            |       |                                |
+
+DEPRECATED → new (this is what breaks configs across the update):
+`"$@"` (or Windows `%*`) → **`%s`** · `"$N"`/`%N` → `%sN` · `"$0"`/`%0` → `%h`
+(`%*` was the OLD WINDOWS token — never valid on Unix; using it prints literally / does nothing.)
+
+Openers use `%s` (all selected); the hovered-file target was removed from openers (#3226), so `%h` is
+mainly for the `shell` command. Example openers:
+```toml
+[opener]
+edit = [ { run = 'nvim %s', block  = true,  desc = "Edit in nvim", for = "unix" } ]
+play = [ { run = 'vlc %s',  orphan = true,  desc = "Play in VLC",  for = "unix" } ]
+```
+
+WATCH OUT: yazi is pre-1.0 and moves config syntax across releases (`name`→`url`, `[manager]`→`[mgr]`,
+`"$@"`→`%s`). A `pacman` upgrade can silently desync tracked configs — after any yazi update, check
+that openers + custom keybinds still work.
+
+<!-- Docs: opener https://yazi-rs.github.io/docs/configuration/yazi#opener · PR #3232 (shell formatting) -->
