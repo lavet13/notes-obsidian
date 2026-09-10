@@ -78,6 +78,41 @@ rm "$FILE"           # correct — one argument
 
 ---
 
+## Word splitting & IFS
+
+IFS = Internal Field Separator: the characters bash uses to chop an UNQUOTED
+expansion into separate words. Default = space, tab, newline. It fires on unquoted
+expansions — a variable, a command substitution, the positional parameters — and
+quoting the expansion turns it off. (zsh does NOT auto-split — see [[zsh-knowledge]])
+
+```bash
+s="a b   c"
+for w in $s;   do echo "[$w]"; done   # [a] [b] [c]  — unquoted: split on IFS (blank runs collapse)
+for w in "$s"; do echo "[$w]"; done   # [a b   c]    — quoted: ONE word, spacing preserved
+```
+
+See also the `[@]` vs `[*]` and `"$*"`-join notes above — same IFS, used to JOIN.
+
+### Two idioms worth memorizing
+
+```bash
+# 1) Read a file line-by-line WITHOUT mangling it — the canonical safe loop:
+while IFS= read -r line; do
+  printf '%s\n' "$line"
+done < file
+#   IFS=   empty, ONLY for this read → don't trim leading/trailing whitespace
+#   -r                               → backslash stays literal (never drop this)
+
+# 2) Split a string on a specific delimiter into an array:
+csv="alpha,bravo,charlie"
+IFS=, read -ra parts <<< "$csv"       # IFS=, for this read only; -a → array; <<< feeds the string
+printf '%s\n' "${parts[@]}"           # alpha / bravo / charlie
+```
+
+Gotcha: put the assignment on the SAME line as the command (`IFS=, read …`) so it
+applies to that command only. A bare `IFS=,` on its own line changes it for the whole
+shell — if you must, save and restore: `old=$IFS; IFS=,; …; IFS=$old`.
+
 ## Variable Expansion Forms
 
 The colon `:` means "also treat empty as unset". Without `:`, only truly unset triggers it.
@@ -340,6 +375,37 @@ so commands that expect file arguments can read command output:
 diff <(echo -e "a\nb\nc") <(echo -e "a\nx\nc")   # compare two command outputs
 cat <(echo hi)     # hi — cat reads the pipe
 echo <(echo hi)    # /dev/fd/63 — echo just prints the filename, doesn't read it
+```
+
+## Command substitution `$(cmd)`
+
+```bash
+# The SHELL runs cmd and pastes its STDOUT in place, before the final command runs.
+now=$(date +%F)               # now = "2026-09-04"
+echo "there are $(ls | wc -l) files"
+files=( $(ls *.mp3) )         # capture into an array (word-split on IFS)
+
+# `$(...)` nests cleanly; the old backtick form `...` does not — prefer $().
+outer=$(echo "inner: $(date +%H:%M)")
+
+# Quote it unless you WANT word-splitting: "$(cmd)" = one string; $(cmd) = split on spaces.
+```
+
+### Not the same as `%(...)` — different expander, different layer
+`$(cmd)` is expanded by the SHELL. `%(field)s` / `%(field)q` is an OUTPUT-TEMPLATE
+field expanded by the PROGRAM (yt-dlp, ffmpeg-style tools), modelled on Python's
+`"%s" % value` formatting — the shell never touches it. So in
+`yt-dlp --exec "wl-copy %(filepath)q"`, yt-dlp fills in the path; there is no
+subshell. Rule of thumb: `$( )` = "run this"; `%( )` = "look up this field".
+
+```bash
+# Split-on-spaces in action (unquoted command sub splits — in BOTH bash and zsh):
+for w in $(echo "alpha bravo charlie"); do echo "[$w]"; done
+#   → [alpha] [bravo] [charlie]        unquoted: output split into words
+for w in "$(echo "alpha bravo charlie")"; do echo "[$w]"; done
+#   → [alpha bravo charlie]            quoted: stays ONE word
+# ⚠ this split (on IFS = space/tab/newline, not just spaces) is exactly why
+#   files=( $(ls *.mp3) ) breaks on names with spaces — the quoting note above is the fix
 ```
 
 ### Reading `diff` output
@@ -1432,3 +1498,22 @@ grep -rIl --exclude-dir=.git 'OLD' path/ | xargs -r sed -i 's/OLD/NEW/g'
 - Re-run the bare `grep -rIn 'OLD'` after to confirm zero matches remain.
 
 <!-- Docs: https://www.gnu.org/software/findutils/manual/html_node/find_html/xargs-options.html -->
+
+## ANSI-C quoting
+
+The dollar-single-quote form interprets C-style backslash escapes; plain double and
+single quotes leave them literal. It does NOT expand variables — after escapes are
+processed it behaves like a single-quoted string.
+
+```bash
+printf '[%s]\n' $'a\tb'      # [a<TAB>b]          \t → real tab
+printf '[%s]\n' $'x\ny'      # [x] / [y]          \n → real newline
+printf '[%s]\n' $'hi $var'   # [hi $var]          NO variable expansion
+printf '[%s]\n' "a\tb"       # [a\tb]             double quotes: escape stays literal
+
+# Escapes: \n \t \r \0 \e \\ \' \xHH \uHHHH
+# Most useful for delimiters and for feeding real newlines/tabs to a command:
+IFS=$'\n'                                  # split on newlines only
+IFS=$'\t' read -ra cols <<< "$tsv_row"     # split a TSV row on real tabs
+while IFS= read -r l; do :; done <<< $'a\nb\nc'   # give read ACTUAL newlines
+```

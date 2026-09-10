@@ -111,3 +111,57 @@ FILE          runs for…                                   system (Arch: /etc/z
 - umask home: a per-user default in `.zshrc`/`.zprofile` covers your shells; system-wide
   defaults come from PAM (`pam_umask`) or `/etc/profile`, not your rc — where a umask you
   didn't set is hiding.
+
+## Word splitting — zsh splits command substitution, NOT parameter expansion (bash splits both)
+
+IFS = Internal Field Separator (default: space, tab, newline). bash splits EVERY
+unquoted expansion on IFS; zsh does not — it hands you the value(s) intact.
+
+```zsh
+demo() { for a in $*; do echo " - $a"; done }
+demo apple "two words" peal
+#   zsh  → apple | "two words" | peal   (3 words — the string stays whole)
+#   bash → apple | two | words | peal   (4 words — split on IFS)
+```
+
+Consequences in zsh: swapping `$*` for `$@` changes nothing (neither splits), and a
+filename with spaces survives unquoted. To split ON PURPOSE, ask with a param flag:
+
+```zsh
+str="two words"
+for w in ${=str};      do echo " - $w"; done   # =        → IFS word-split (bash-like)
+for w in ${(s: :)str}; do echo " - $w"; done   # (s:SEP:) → split on a given separator
+for w in ${(s:,:)csv}; do echo " - $w"; done   # e.g. split CSV on commas
+```
+
+```zsh
+# The asymmetry (SH_WORD_SPLIT off = the default):
+v="a b c"
+for w in $v;              do echo "[$w]"; done   # PARAMETER → not split → [a b c]
+for w in $(echo "a b c"); do echo "[$w]"; done   # COMMAND sub → split → [a] [b] [c]
+for w in "$(echo a b c)"; do echo "[$w]"; done   # quoted → back to one word → [a b c]
+```
+
+Gotcha: `setopt shwordsplit` forces bash-style splitting everywhere — avoid, it
+surprises you in unrelated code. Prefer per-expansion `${=var}` / `${(s:X:)var}`.
+
+## Globbing — NOMATCH error and the `(N)` qualifier
+
+By default zsh has NOMATCH on: a glob that matches nothing raises `no matches found`
+and ABORTS the command — it never runs (bash instead passes the literal pattern
+through). The error is emitted during EXPANSION, before the command and its
+redirections are set up, so `&>/dev/null` cannot suppress it.
+
+```zsh
+ls *.mp3               # no matches → "zsh: no matches found: *.mp3"  (ls never runs)
+ls *.mp3 &>/dev/null   # STILL errors — the abort happens before the redirection applies
+
+# Fixes:
+for f in *.mp3(N); do ...; done   # (N) = NULL_GLOB for THIS glob → vanishes if empty (idiomatic)
+setopt null_glob                  # global: unmatched globs expand to nothing, everywhere
+setopt nonomatch                  # global: pass the literal like bash (rarely what you want)
+```
+
+`(N)` is one of many glob qualifiers — the trailing `(...)` that filters or modifies a
+match: `(.)` plain files, `(/)` dirs, `(@)` symlinks, `(om[1])` newest. `(N)` just adds
+"empty is fine." So `clipfiles ~music/*.mp3(N)` degrades quietly instead of erroring.

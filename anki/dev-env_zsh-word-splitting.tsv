@@ -1,0 +1,29 @@
+#separator:Tab
+#html:false
+#notetype:Basic
+#deck:Dev
+#tags column:3
+"zsh vs bash: does an UNQUOTED expansion ($var, $*, $@) get word-split?"	"bash: YES — splits every unquoted expansion on IFS (space/tab/newline).
+zsh:  NO  — for PARAMETER expansion: unquoted $var / $* / $@ stay intact.
+
+  for a in $*; ...   with args: apple ""two words"" peal
+    zsh  -> apple | ""two words"" | peal   (3 words)
+    bash -> apple | two | words | peal     (4 words)
+
+So swapping $* for $@ in zsh changes nothing, and a spaced filename survives
+unquoted. Split on purpose with ${=var} / ${(s:X:)var}.
+(Exception: command substitution $(...) DOES split in zsh — see asymmetry card.)"	"dev-env zsh word-splitting"
+"zsh: how do you force-split a string into words?"	"str=""two words""
+${=str}        # = flag  -> IFS word-split (like bash would)
+${(s: :)str}   # (s:SEP:) -> split on a specific separator (a space here)
+${(s:,:)csv}   # e.g. split CSV on commas
+
+IFS = Internal Field Separator (default: space, tab, newline).
+(setopt shwordsplit makes zsh split everywhere like bash — avoid; too surprising.)"	"dev-env zsh word-splitting"
+"zsh: does UNQUOTED command substitution $(cmd) split? (vs a plain $var)"	"Asymmetry (SH_WORD_SPLIT off = default):
+  $var  $*  $@    PARAMETER expansion    -> NOT split (stays one value)
+  $(cmd)  `cmd`    COMMAND substitution   -> SPLIT on IFS
+  ""$(cmd)""         quoted                 -> one word
+
+bash splits BOTH forms; zsh splits only command-sub / backticks.
+  for w in $(echo 'a b c'); ...  -> a | b | c   (yes, even in zsh)"	"dev-env zsh word-splitting"

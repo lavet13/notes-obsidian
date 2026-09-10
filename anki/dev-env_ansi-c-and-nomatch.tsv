@@ -1,0 +1,22 @@
+#separator:Tab
+#html:false
+#notetype:Basic
+#deck:Dev
+#tags column:3
+"bash/zsh: how do you put a REAL tab or newline in a string? ($'...' vs ""..."")"	"$'...'  = ANSI-C quoting — interprets backslash escapes:
+  $'a\tb'  -> a<TAB>b      $'x\ny' -> two lines
+  also \r \0 \e \\ \' \xHH \uHHHH
+Plain ""..."" and '...' leave \t \n LITERAL.
+$'...' does NOT expand variables ($var stays literal).
+
+Handy:  IFS=$'\n'  (split on newlines only)
+        <<< $'a\nb\nc'  (feed `read` real newlines)"	"dev-env bash quoting"
+"zsh: why does  ls *.mp3  error 'no matches found', even with &>/dev/null?"	"zsh NOMATCH is ON by default: a glob matching nothing raises ""no matches found""
+and ABORTS the command (bash instead passes the literal pattern through).
+The error fires during EXPANSION — before the command/redirections run — so
+&>/dev/null can't hide it.
+
+Fixes:
+  *.mp3(N)         # (N) = NULL_GLOB for this glob -> vanishes if empty (idiomatic)
+  setopt null_glob # global: unmatched -> nothing
+  setopt nonomatch # global: pass literal like bash"	"dev-env zsh globbing"

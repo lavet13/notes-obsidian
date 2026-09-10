@@ -1,0 +1,24 @@
+#separator:Tab
+#html:false
+#notetype:Basic
+#deck:Dev
+#tags column:3
+"bash: what is IFS, and when does the shell use it?"	"IFS = Internal Field Separator — the chars bash splits an UNQUOTED expansion on.
+Default: space, tab, newline.
+
+Fires on unquoted  $var  $(cmd)  $@  $*  → chops them into words.
+Quoting (""$var"") turns splitting OFF.
+
+Same IFS also JOINS: ""${arr[*]}"" / ""$*"" glue elements with IFS's first char.
+(zsh does NOT auto-split unquoted expansions — this is bash behavior.)"	"dev-env bash word-splitting"
+"bash: the two IFS idioms — safe line read, and split a string on a delimiter"	"# 1) read a file line-by-line without mangling it:
+while IFS= read -r line; do printf '%s\n' ""$line""; done < file
+     IFS=  (empty, this read only) -> don't trim leading/trailing whitespace
+     -r                            -> backslash stays literal
+
+# 2) split a string into an array on a delimiter:
+csv=""alpha,bravo,charlie""
+IFS=, read -ra parts <<< ""$csv""   # IFS=, this read only; -a array; <<< here-string
+printf '%s\n' ""${parts[@]}""      # alpha / bravo / charlie
+
+Put IFS= on the SAME line as the command so it applies to just that command."	"dev-env bash word-splitting"
