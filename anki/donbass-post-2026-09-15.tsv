@@ -1,0 +1,26 @@
+#separator:Tab
+#html:false
+#notetype:Basic
+#deck:Dev
+#tags column:3
+"In this hand-rolled router (exact-string path matching), how do you read a dynamic value like a tracking number from the URL?"	"From the query string inside the handler — the router has no `:param` support, so `/api/x/:track` would 404.
+
+const track = new URL(request.url).searchParams.get(\"track\");"	"donbass-post track-global router"
+"Why cache upstream ""not found"" results with a SHORTER TTL than ""found"" ones?"	"A ""found"" parcel's history is append-only and moves slowly → safe to reuse ~6h. A ""not found"" is often just ""not registered yet"" and can flip within minutes → short TTL (~30min) so a real parcel isn't frozen as missing until the long TTL lapses."	"donbass-post track-global cache"
+"isFresh(row) — shape and where it lives?"	"function isFresh(row: { found: boolean; fetchedAt: Date }): boolean {
+  const ttl = row.found ? FOUND_TTL_MS : MISS_TTL_MS;
+  return Date.now() - row.fetchedAt.getTime() < ttl;
+}
+Impure (reads the clock) but domain policy → track-global/service.ts, not utils/."	"donbass-post track-global cache"
+"parseInteger — a strict string→int parser. Why prefer it over parseInt/Number?"	"function parseInteger(raw: string | null | undefined): number | null {
+  if (raw == null || raw.trim() === \"\") return null;
+  const n = Number(raw);
+  return Number.isInteger(n) ? n : null;
+}
+Rejects null/empty/floats/trailing junk (""12.9"", ""12abc"" → null, not 12/12). `raw == null` (loose) catches both null and undefined."	"donbass-post utils parsing"
+"Runtime error: `InvalidArgumentError: invalid onRequestStart method` when fetch uses a fetch-socks dispatcher. Cause and fix?"	"Two undici copies: Node's built-in undici (global fetch) vs the standalone undici package (the dispatcher targets). Different majors → mismatched handler interface. Fix: import { fetch } from \"undici\" so fetch and dispatcher share one undici; pin undici+fetch-socks+socks to exact versions."	"donbass-post typescript undici"
+"Why does `import { fetch } from ""undici""` crash a bundled ESM app with ""Dynamic require of assert""?"	"The bundler inlines undici (import is statically resolvable), but undici's CJS internals do runtime require() — in ESM output esbuild replaces require with a throwing shim. Fix: mark undici (and fetch-socks, socks) `external` in tsup so Node resolves them from node_modules at runtime."	"donbass-post typescript bundling"
+"Storing a track.global response in a Prisma Json column — why not JSON.stringify(body.data)?"	"Json wants an object; stringify stores a JSON *string*, which reads back as a string → client renders blank on cache HIT (live path returned an object, cache path a string). Fix: cast `body.data as unknown as Prisma.InputJsonValue` — stays an object both ways."	"donbass-post prisma json"
+"nginx: why does a bot redeploy 502 every proxied route until nginx restarts?"	"`proxy_pass http://name:port` with a plain hostname resolves the IP ONCE at config load and caches it. `up -d --build` gives the bot a new container IP → nginx dials the dead old one → connect() failed → 502. Fix: restart nginx-certbot after deploy so it re-resolves."	"donbass-post devops nginx"
+"What does proxy_cache_lock on do?"	"Burst-collapse: when many requests miss the same cache key at once, nginx lets ONE go to the upstream and makes the rest WAIT for it, then serves them all from the filled cache. Without it, all concurrent misses stampede the upstream."	"donbass-post devops nginx"
+"A pure function that's domain-specific (e.g. slimTrackData) — utils/ or feature folder?"	"Feature folder. Two independent axes: purity (util vs service) and domain-knowledge (generic utils/ vs feature folder). Pure ≠ generic. Pure + domain-specific → lives with its feature (track-global/service.ts), because it knows that domain's shape."	"donbass-post architecture organization"

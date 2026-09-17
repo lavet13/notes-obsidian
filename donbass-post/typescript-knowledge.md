@@ -29,9 +29,7 @@ union member and the object won't compile until you handle it.
 
 ```typescript
 type Notification =
-  | "online-pickup-rf"
-  | "ali-parcel-pickup"
-  | "pick-up-point-delivery-order";
+  "online-pickup-rf" | "ali-parcel-pickup" | "pick-up-point-delivery-order";
 
 // A Record keyed by the union forces an entry for EVERY member. Add a 4th
 // notification type and this object won't compile until you add its emoji.
@@ -123,8 +121,7 @@ Keeps it pure-ish and unit-testable; the caller decides what to do with the erro
 
 ```typescript
 type Parsed =
-  | { ok: true; chatId: number; rest: string[] }
-  | { ok: false; error: string }; // ready-to-send message, caller owns the reply
+  { ok: true; chatId: number; rest: string[] } | { ok: false; error: string }; // ready-to-send message, caller owns the reply
 
 const parsed = parseCommandArgs(text, USAGE);
 if (!parsed.ok) {
@@ -198,3 +195,22 @@ const [, a, b] = nums; // now index 0 is a real group → a,b shift left, last �
 
 > `[, x]` assumes index 0 is disposable. A `.filter()`/`.slice()` that removes the skipped slot
 > invalidates the assumption. Fix: drop the comma, or convert per-group off the raw `match`.
+
+## fetch + a SOCKS/proxy dispatcher must share ONE undici
+
+Node ships a built-in undici (its global `fetch`); the standalone `undici` npm package is a SEPARATE copy, often a different major. A dispatcher (e.g. from fetch-socks) is built against ONE of them; global fetch uses the other. Cross them and you get either a compile error (two FormData/Dispatcher declarations) or a RUNTIME throw: `InvalidArgumentError: invalid onRequestStart method` (UND_ERR_INVALID_ARG) — undici 8's assertRequestHandler requires a handler method that undici 6's fetch doesn't produce.
+
+- Fix: `import { fetch } from "undici"` so fetch AND the dispatcher come from the same undici. Pin undici + fetch-socks + socks to EXACT versions (their handler contract is the fragile thing; a caret let undici float to a major fetch-socks hadn't caught up to).
+- Declare undici + socks in the app's own package.json even though fetch-socks pulls them transitively — you `import` undici directly, so it's a direct dep (phantom-dependency + can't-pin otherwise).
+- Node has NO native SOCKS for fetch; undici's ProxyAgent is HTTP-CONNECT only. SOCKS needs a userland dispatcher (fetch-socks + socks).
+
+## Importing a CJS-heavy lib into a BUNDLED ESM app → mark it external
+
+`import { fetch } from "undici"` while bundling to ESM (tsup/esbuild) crashed at boot: `Error: Dynamic require of "assert" is not supported`. Cause: `import` is statically resolvable so the bundler INLINES the dep, but undici's internals do runtime `require("assert")` (CJS); in ESM output esbuild replaces `require` with a shim that throws.
+
+- Fix: mark native/CJS-heavy deps `external` in tsup (`external: ["undici","fetch-socks","socks"]`, like @prisma/*). External = bundler leaves a real `import`, Node resolves it from node_modules at runtime where CJS require works.
+- Rule: pure-ESM app code → bundle; native/CJS-heavy or dynamic-require deps → external.
+
+## Prisma Json column wants an object, not a string
+
+Assigning `body.data` (a typed interface) to a `Json` column errors: "Index signature for type 'string' is missing in InputJsonObject." DON'T JSON.stringify to silence it — that stores a JSON _string_, and reads back a string → the client renders blank on cache HIT (live path passed an object, cache path a string; asymmetry). Fix: cast `body.data as unknown as Prisma.InputJsonValue`, keeping it an object both ways.

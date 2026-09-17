@@ -139,6 +139,7 @@ GHA filter glob is its OWN dialect (not shell glob, not full regex):
 - No brace expansion — list `**/*.ts` and `**/*.tsx` separately.
 - `*`, `[`, `!` are special in YAML → quote patterns starting with them.
 
+```yaml
 # No brace expansion. The shell turns {ts,tsx} into "ts tsx"; GHA does NOT — it reads the braces
 # LITERALLY (a file named "…{ts,tsx}"), so the pattern matches nothing. List each on its own line:
 paths:
@@ -152,3 +153,43 @@ paths:
   - "!apps/telegram-bot/*.md"   # unquoted !… → YAML reads a tag → error
   - "*.md"                      # unquoted *…  → YAML reads an alias → error
   - "[a-z]*.ts"                 # unquoted [   → YAML reads a flow sequence → wrong
+```
+
+## nginx micro-caching a proxied endpoint (proxy_cache)
+
+Two-layer cache model: nginx 30s microcache (collapses request bursts) OVER the node DB cache (saves upstream quota). Different jobs — nginx protects against concurrent duplicate work, node protects the quota.
+
+```nginx
+# http context (by limit_req_zone):
+proxy_cache_path /var/cache/nginx/track_global levels=1:2 keys_zone=track_global:1m max_size=50m inactive=10m;
+#   levels=1:2       nest cache files in subdirs (filesystems hate flat huge dirs)
+#   keys_zone:NAME:1m  shared-mem for KEYS+metadata (not bodies); 1m ≈ 8000 keys
+#   max_size         disk cap for bodies; LRU-evicts past it
+#   inactive         drop entries not READ within this window
+
+# location = /api/track-global (exact match beats the /api/ prefix):
+proxy_cache track_global;
+proxy_cache_key "$request_uri";      # path+query → one entry per parcel; query is the identity
+proxy_cache_valid 200 30s;           # only cache 200s, briefly
+proxy_cache_lock on;                 # burst-collapse: N simultaneous misses on the SAME key → 1 upstream call, the rest wait for it
+add_header X-Cache-Status $upstream_cache_status always;  # HIT/MISS/EXPIRED visible in DevTools
+```
+- `EXPIRED` is normal, not an error: entry aged past proxy_cache_valid, nginx revalidates by re-asking upstream.
+- add_header in a location REPLACES inherited add_headers → re-declare server-level security headers in the block.
+- Vary: Origin from upstream is honored automatically — nginx keys per-origin on its own. (Our node cors already sends it, so no need to fold origin into proxy_cache_key.)
+- nginx won't cache if upstream sends Set-Cookie / Cache-Control:no-cache. Our node returns a fresh Response.json (none of those), so it caches. Only add `proxy_ignore_headers Cache-Control Set-Cookie;` if a HIT never appears.
+
+## Test nginx config locally without ACME/prod
+`nginx -t` never contacts Let's Encrypt — it only parses. Danger is only in `docker compose up` of the certbot image. Validate in a throwaway plain-nginx container; two things trip -t because it FULLY loads config:
+```bash
+# fake certs at the paths the config references
+CERTDIR=/tmp/le/live/donbass-post.duckdns.org; mkdir -p "$CERTDIR"
+openssl req -x509 -newkey rsa:2048 -nodes -days 1 -keyout "$CERTDIR/privkey.pem" -out "$CERTDIR/fullchain.pem" -subj "/CN=localhost"
+cp "$CERTDIR/fullchain.pem" "$CERTDIR/chain.pem"
+docker run --rm -v "$PWD/nginx/conf.d:/etc/nginx/conf.d:ro" -v /tmp/le:/etc/letsencrypt:ro \
+  --add-host telegram-bot:127.0.0.1 nginx:alpine nginx -t
+#   --add-host  → plain proxy_pass hostnames resolve at config load; without this, -t errors "host not found in upstream"
+```
+
+## docker compose file auto-loading
+Plain `docker compose up` loads docker-compose.yml ALWAYS + docker-compose.override.yml IF present. Any `-f` flag disables ALL auto-loading — only the listed files, in flag order, later overriding earlier. So `-f docker-compose.prod.yml` ALONE is incomplete (no base) → prod always needs `-f docker-compose.yml -f docker-compose.prod.yml`.

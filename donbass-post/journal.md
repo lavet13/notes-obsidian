@@ -7,9 +7,29 @@ tags: []
 
 # Journal
 
+## 2026-09-15 — track.global parcel proxy (feature complete)
+
+**What & why.** The free track.global iframe widget died (moved to paid API). Replaced it with a cached, quota-aware proxy on the bot: `GET /api/track-global?track=` on donbass-post, consumed by the legacy PHP page (search-gruz.php, php-apache-mysql repo). Free RapidAPI tier = 10 req/day, so the whole design is quota-defense: cache-first + serve-stale.
+
+**Resume pointer.** Server side done and deployed. Remaining is CLIENT polish in the php-apache-mysql repo: drop the "? → ?" header line when fromLocation/toLocation are empty strings (API sends "" for aliexpress); same empty-string handling for per-event `location`; flip `USE_MOCK=false`.
+
+**Reasoning / rejected paths.**
+
+- Redis for the cache: rejected. 1 VPS, 10 req/day → a Prisma table (Postgres already present, Json column precedent in NotificationLog) does it, survives restarts, no new infra. Redis only earns its place at >1 app instance (shared state) or when the DB is a measured hot path — neither true.
+- Own daily counter: dropped. RapidAPI enforces 10/day itself and returns x-ratelimit-* headers; cache-first + let a 429 be the hard stop is simpler.
+
+**System-facts about my infra (durable):**
+
+- nginx `proxy_pass http://telegram-bot:3000` with a plain hostname resolves the IP ONCE at config load and caches it. `up -d --build` gives the bot a new container IP → nginx dials the dead old one → `connect() failed (111)` → 502 on EVERY proxied route until nginx restarts. Fix: deploy restarts nginx-certbot after bring-up. A bot-only deploy that skips nginx will strand it.
+- The prod VPS egress IP is geo/legally blocked by track.global (direct call → HTTP 451; same creds succeed from other IPs). The bot routes the RapidAPI call through the existing Telegram SOCKS5 proxy (serj/go-socks5-proxy on the other VPS, socks5h:// = remote DNS). Reused TELEGRAM_PROXY via config.trackGlobal.proxy.
+- track.global responses embed a ~40KB SEO article (full_text) per service, twice (found_in_services + checkedServices). Slim to id/name/alias/image_path before caching; drop checkedServices. Rows dropped from ~230KB to ~5-9KB.
+
+**Commit trail:** cached proxy → nginx microcache → CI nginx restart → SOCKS5 dispatcher → pin undici trio → strip SEO blob.
+
 ## 2026-07-23 — pick-up-point closed; spreadsheet ingestion specced
 
 ### Learned
+
 - **Align a downstream schema to the GATE, not to the client you're deleting.** Harvest the real
   rules by POSTing degenerate payloads and reading the 400s. The bot had been mirroring the old
   form (min-5) instead of workplace-post.ru (min-3), silently dropping notifications.
@@ -19,6 +39,7 @@ tags: []
   `exists('g:loaded_matchit')` cost hours; `nvim --clean` settled it in one run.
 
 ### Changed
+
 - notify schemas aligned + consolidated to one `text()` helper; payload keyed by mode
   (`companySender`/…) with the notify transform renaming back on every return path.
 - pick-up-point form: server-only errors, event delegation, namespaced localStorage with
@@ -32,6 +53,7 @@ tags: []
   properly (the first emit had no header/quoting/tags) + new `anki/nvim-matchit-2026-07-23.tsv`.
 
 ### Resume from
+
 The 🔴 Urgent todo entry — spreadsheet ingestion. Transform is fully derived from a real
 before/after pair (6 files → 3 workbooks; merge / side-by-side / stacked, per family) and auth is
 `POST /api/auth/manager {login,password}` → `{tokenManager}` → `Bearer`. Next concrete step:

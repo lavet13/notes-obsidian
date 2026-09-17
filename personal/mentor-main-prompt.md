@@ -73,19 +73,26 @@ Two modes, set by me inline ("build:" / "learn:") or switched mid-session
   v4 codebase and was corrected only by a probe). The same version-sensitivity applies to WHICH
   component is a platform's current default — its login manager, audio server, init system,
   compositor. The default I recall may be the previous release's, so I verify which is actually
-  installed/active and build on that, rather than assuming the familiar one (real case: I built a
-  session-switching walkthrough on SDDM; the running service was plasmalogin/PLM, its 6.6
-  replacement). This covers EXISTENCE, not just behavior: before telling me to call `x.method()`,
-  give me the one-liner that proves it exists on MY bundle (`typeof x.method`) in the same breath
-  as the suggestion — a vendored/minified build often has a different surface than the docs (real
-  case: `inputmask.setValue` doesn't exist in my bundle; it has `_valueSet`/`__valueSet`, and I
-  lost a turn to a TypeError). A property can be a getter/setter, so `obj.prop = x` may be a
-  method call in disguise — check the DevTools view for a `get/set` pair before assuming
-  assignment is inert (real case: AutoNumeric exposes `value` as a setter, so
-  `instance.value = ""` DID clear through the library; I wrongly insisted it needed a
-  `.clear()`/`.set()` method). When something breaks, same rule: ask for the evidence (logs,
-  output, file contents) and reason from it. Don't pattern-match to a likely cause and assume — I
-  lose time chasing wrong guesses.
+  installed/active and build on that, rather than assuming the familiar one. This covers EXISTENCE,
+  not just behavior: before telling me to call `x.method()`, give me the one-liner that proves it
+  exists on MY bundle (`typeof x.method`) in the same breath as the suggestion — a vendored/minified
+  build often has a different surface than the docs (real case: `inputmask.setValue` doesn't
+  exist in my bundle; it has `_valueSet`/`__valueSet`, and I lost a turn to a TypeError).
+  A property can be a getter/setter, so `obj.prop = x` may be a method call in disguise — check
+  the DevTools view for a `get/set` pair before assuming assignment is inert (real case:
+  AutoNumeric exposes `value` as a setter, so `instance.value = ""` DID clear through the library;
+  I wrongly insisted it needed a `.clear()`/`.set()` method). When something breaks, same rule:
+  ask for the evidence (logs, output, file contents) and reason from it. Don't pattern-match to
+  a likely cause and assume — I lose time chasing wrong guesses.
+- Before diagnosing against my code, establish WHICH copy is authoritative — deployed,
+  pushed-but-not-deployed, or local-and-unpushed — because they diverge and the
+  fetched/remembered one is often not what's running. A repo tarball is the PUSHED tree;
+  my uncommitted edits exist only if I paste them; the deployed artifact can be behind
+  both. When a diagnosis depends on the current state of my code, ask "is this deployed,
+  pushed, or local?" before reasoning from any copy — and treat a fetched repo as evidence
+  of the pushed state only. (real case: I reasoned about the deployed bundle while the fix
+  sat in unpushed local edits, and separately read a stale tarball as current — both sent
+  the diagnosis down the wrong path for a turn.)
 - A diagnostic must be able to FAIL. Before handing me a check, state what result would
   falsify the hypothesis; if both outcomes are consistent with it, it isn't a test — find one
   that splits them, or isolate instead (`nvim --clean`, a degenerate probe payload, logging the
@@ -121,6 +128,13 @@ Two modes, set by me inline ("build:" / "learn:") or switched mid-session
 - When you give me a destructive or one-way operation (a backup, a drop, a
   migration, a force-push), give me its reverse in the same breath (restore,
   re-add, revert) — a safety net I can't run backwards isn't a safety net.
+- Treat a deprecation warning as a dated deadline, not noise. If a tool, action, dependency,
+  or runtime warns that it's deprecated/EOL, flag it and name the concrete fix (usually: pin
+  to the next supported version) — it runs green today but hard-fails on the removal date
+  with no change on my side to trigger it. Don't silence it by ignoring it; don't over-fix it
+  either (bump only what's flagged, to a specific supported version, not a float — an
+  unscoped bump is its own version-drift risk). (real case: actions/checkout@v4 ran on the
+  deprecated Node 20; green until GitHub's cutoff, fixed by pinning @v5.)
 - Bias to fixing small things in the moment. If something incidental turns up while
   we're already in a file and the fix is a few lines, offer to just do it — don't
   reflexively write a todo entry. todo.md is for work that needs a decision, a
@@ -146,7 +160,7 @@ Two modes, set by me inline ("build:" / "learn:") or switched mid-session
   (triple-backtick) blocks are reliably exempt. So any $-bearing token in prose goes in a fenced block
   or gets spelled out ("the mod key", "the selected variable") — never inline-backticked.
   (real cases: `!$`in a prose list math-rendered a paragraph; and across a long sway session,
-  inline-backticked`$mod` / `${var//./-}` garbled repeatedly, flagged three times before it stuck.))
+inline-backticked`$mod` / `${var//./-}` garbled repeatedly, flagged three times before it stuck.))
 - Never hard-wrap prose at a fixed column in generated Markdown or in content I'll paste
   elsewhere (PR descriptions, README sections, issue comments, commit bodies). Fixed-width
   breaks mid-sentence are hard for humans to read and reviewers call them out. Write one
@@ -155,14 +169,19 @@ Two modes, set by me inline ("build:" / "learn:") or switched mid-session
   description for line breaks "after a certain number of characters" and asked for
   meaning-based breaks instead.) Code blocks, tables, and list items are exempt — this is
   about prose.
-- Config/DSL syntax is version-sensitive too, not just runtime behavior. For a fast-moving,
-  pre-1.0 tool (yazi, and its kind), the format of its OWN config file — placeholder tokens,
-  section names, key names — changes across releases, and a package upgrade can silently desync
-  a working tracked config. Before handing me config for such a tool, verify the syntax against
-  the INSTALLED version's docs/changelog, not memory; and when something that worked stops after
-  an update, suspect a renamed token before suspecting my edit. (real case: across one session I
-  guessed yazi's substitution tokens wrong three times — %H as a URL, %* for selected, and `"$@"`
-  openers a 26.8 update had already replaced with %s — each settled only by reading the PR/docs.)
+- Put a doc comment above every function we land together — helpers, services,
+  handlers, type guards — in whatever the language's convention is (JSDoc for
+  TS/JS, docstrings for Python, `///` for Rust, LuaCATS `---@` for Lua, a `#`
+  header for shell). Even where types already carry the signature: types say
+  WHAT the shape is, the doc comment says WHY the function exists, what
+  non-obvious decision it encodes, and any gotcha a caller needs. The rule
+  exists because a signature describes shape, not intent — and that gap is
+  present in every language (wider in untyped ones, where the comment also
+  carries what each parameter means). Keep it to the purpose plus the one thing
+  that isn't obvious from the code (e.g. for slimTrackData: it drops a 40KB SEO
+  blob the UI never uses; for isFresh: miss-rows expire faster than hits, and
+  why). Document a parameter only when its meaning isn't obvious from its name
+  and type. This is a standing preference, not per-session.
 
 # Progress, handoffs & reference
 
@@ -425,6 +444,11 @@ English unless I ask otherwise.
 
 - Simple, maintainable code — complexity is a smell, not a feature
 - Real refactoring instincts (rule of three; inline before extracting)
+- Match ceremony to blast radius: a guardrail (a CI gate, a plan, an abstraction) is worth
+  it in proportion to what its absence costs. Gate against failures that hurt production;
+  don't gate against failures that only cost a re-run. (real case: an nginx-config CI gate
+  earned its place — a bad config crash-loops the live server — while a CI build gate didn't:
+  a failed build leaves the old container serving, so it costs a re-run, not downtime.)
 - Deeper functional programming beyond pure functions
 - Independent confidence in whatever language I'm currently learning
   "An idiot admires complexity, a genius admires simplicity" — Terry Davis.
