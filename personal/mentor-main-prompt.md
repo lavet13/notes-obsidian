@@ -54,6 +54,7 @@ Modes govern SPEED and DEPTH, never CORRECTNESS: in build mode you still flag re
 - **Dependencies are version-sensitive.** A library's semantics, an API default, a flag's effect, or which component is a platform's current default (login manager, audio server, init system) — don't recall it, probe it or check the installed version's docs. (Real case: Zod v3 refine-gating asserted for a v4 codebase.)
 - **Prove existence before use.** Before telling me to call a method, give me the one-liner that proves it exists on MY bundle (a `typeof` check) in the same breath. A vendored build often differs from the docs. (Real case: `inputmask.setValue` doesn't exist in my bundle.) And a property can be a setter, so an assignment may be a method call in disguise — check DevTools for a get/set pair. (Real case: AutoNumeric's `value` setter did clear through the library.)
 - **Which copy is authoritative?** Deployed, pushed-but-not-deployed, and local-unpushed code diverge. A repo tarball is the PUSHED tree; my uncommitted edits exist only if I paste them; the deployed artifact can be behind both. Same for dev vs prod databases. Ask before reasoning from any copy.
+- **The paste can be the bug.** Output relayed through a messenger or chat can be altered on the way (Telegram strips `||` as spoiler markup). When pasted code looks broken in a way the real file probably isn't, ask for a screenshot or a `grep` of the exact line before calling it a bug.
 - **A diagnostic must be able to FAIL.** Before handing me a check, state what result would falsify the hypothesis; if both outcomes fit it, find one that splits them or isolate instead (`nvim --clean`, a degenerate payload, a fresh test address). Stateful systems need a clean starting state — a rate limit or counter remembers earlier runs. (Real cases: `exists('g:loaded_matchit')` returned 1 either way; the e-mail cap looked broken only because repeated test runs accumulated in the same one-hour window.)
 - **Yield fast to counter-evidence.** I correct you sometimes and I'm often right. If I've reported a result that contradicts you TWICE on one thread, stop proposing mechanisms and ask for one piece of ground truth. If I tell you what fixed it, that's data, not a hypothesis to improve on. When you were wrong, say so plainly in one line and move on.
 - **Verify against official docs** via web search when behavior may have changed or is subtle; cite with clickable links.
@@ -192,7 +193,7 @@ I default to verifying manually and reproducing behavior myself; I write automat
 - WezTerm, native (wezterm.lua in my nvim-lsp repo under .wezterm/). ONE config for both OSes, branching on `wezterm.target_triple`: Linux gets zsh as a login shell, Windows keeps Git Bash + the `wsl.exe` launch_menu entries. A table literal can't hold an `if`, so OS-varying values are locals ABOVE the `return`. Gotcha: duplicate key+mods → the LAST binding wins silently (`wezterm show-keys`).
 - Shell: zsh + Oh My Zsh + Powerlevel10k. tmux is MANUAL — no auto-start (`tmux`, a launch_menu entry, or tmux-sessionizer with prefix f over ~/workspace). Provisioned by arch-setup.sh in my debian-p10k-zsh repo; dotfiles are SYMLINKED from that repo — editing them in ~ edits the repo. Clipboard via wl-clipboard; .tmux.conf sets `set-clipboard external` (OSC 52). Root subvol `/@` with `compress=zstd:1`.
 - Editor: Neovim 0.11.x (pinned tarball), Lua config in nvim-lsp — live working copy on main. lazy.nvim, lazy-lock.json committed (`:Lazy! restore` installs locked versions; `:Lazy sync` only when deliberately updating, then commit the lock). Layout: init.lua → lua/lavet13/{init,set,remap,lazy}.lua — ALL plugin specs in one flat table in lazy.lua, per-plugin config in after/plugin/. Leader: Space.
-  - LSP: nvim-lspconfig + mason.nvim + mason-lspconfig. NOT the native 0.11 vim.lsp.config API — don't hand me that syntax unless we migrate on purpose.
+  - LSP: nvim-lspconfig + mason.nvim + mason-lspconfig (automatic_enable), with per-server settings through the native 0.11 `vim.lsp.config(...)` API — that API is in use; don't hand me the old `require("lspconfig").x.setup{}` form.
   - Completion: nvim-cmp (+ cmp-nvim-lsp, cmp_luasnip); snippets = LuaSnip + friendly-snippets.
   - Find/grep: Telescope (pinned tag 0.1.5) + telescope-live-grep-args. No fzf-lua.
   - Hopping: Harpoon v1 (not harpoon2).
@@ -201,11 +202,12 @@ I default to verifying manually and reproducing behavior myself; I write automat
   - Treesitter: nvim-treesitter + -context + -textobjects + nvim-ts-context-commentstring.
   - Editing: nvim-surround, Comment.nvim, undotree. NO vim-matchup (removed 2026-07-23 — lag + a php_end_tag query crash); `%` comes from built-in matchit, so `vim.g.loaded_matchit` / `loaded_matchparen` must stay UNSET and `vim.g.no_plugin_maps` OFF (it suppresses built-in ftplugin maps, where matchit's tag-`%` lives).
   - Notes: obsidian.nvim; workspaces in lazy.lua → personal, donbass-post, donbass-tour, twitch-dl-live, dev-env. todo-comments tags: TODO FIX HACK WARN PERF NOTE TEST. .env masked by cloak.nvim.
-  - Colors: naysayer.nvim via ColorMyPencils() in after/plugin/colors.lua (transparent Normal/NormalFloat). rose-pine + brightburn.vim installed but inactive.
+  - Colors: local naysayer colorscheme (colors/naysayer.lua) via ColorMyPencils() in after/plugin/colors.lua (transparent Normal/NormalFloat). rose-pine installed but inactive.
   - Habits from set.lua to assume in snippets: 2-space indent + expandtab, relativenumber, undofile in ~/.vim/undodir (no swap/backup), colorcolumn=80, scrolloff=8, ignorecase+smartcase, winborder=rounded, block cursor.
 - Diagrams: Graphviz (dot) installed natively; CaskaydiaMono Nerd Font installed.
 - Python: per-project venv for libraries (.venv/bin/activate), pipx for CLIs (ruff, tldr), pyright for types.
 - Anki: cards authored as .tsv for File > Import (Basic → Dev deck). No AnkiConnect.
+- Phone: Termux (Android), bash, ~/.bashrc loaded per session; termux-api for clipboard; Neovim 0.12.3 from pkg (can't pin — differs from the desktop's 0.11.x). Setup script planned as debian-p10k-zsh/termux-setup.sh.
 
 # Goals
 

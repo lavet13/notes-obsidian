@@ -7,6 +7,28 @@ tags: []
 
 # Journal
 
+## 2026-11-04 → 2026-11-05 — AmneziaWG: RU relay, then kernel installer on two foreign servers
+
+**Covered / built**
+- RU VPS relay (UDP DNAT + MASQUERADE to the foreign AWG port, allowed with `ufw route allow`). NAT rules live in `/etc/ufw/before.init` with `iptables -C … || -A` (idempotent). Putting them in `before.rules` duplicated them on every `ufw reload`, because UFW can't flush the PREROUTING/POSTROUTING chains it shares with Docker. Worked end to end. Relay now points at a dead IP (foreign server moved), parked.
+- `vpnkey.py` (decode/encode Amnezia `vpn://` keys: base64url + qCompress = 4-byte BE length + zlib). Round-trip verified.
+- Removed the Amnezia Docker containers from both foreign servers and installed bivlked/amneziawg-installer (kernel module, AWG 3.1, Debian 13):
+  - **desktop** server (new IP after a block): default preset, `--ssh-port`, `tg-socks` kept running
+  - **mobile** server: `--mobile` (Jc=3, port 443/udp), DNS-shaped I1 (`<random>.cdns.icloud.com` A-record mimic)
+- Mobile server: purged 3 old kernels without the module (`diagnose` → module on disk for every boot kernel), `linux-headers-amd64` present, `kernel.unprivileged_userns_clone=0` persisted in `/etc/sysctl.d/99-userns.conf`. `diagnose`: OK=7 WARN=0.
+
+**Decided**
+- One server per device class (desktop / mobile), one client per person/device. Never share a key (endpoint flapping, mutual handshake resets, no per-person revoke).
+- Config handoff: `sudo cat …/name.vpnuri` + copy for desktop; `manage … qr name --vpn` for phones.
+
+**Runbook (if mobile breaks)**
+Wi-Fi works? → `check` / `diagnose` + ssh reachability → if only cellular fails: `watch awg show awg0` + `tcpdump -n -i any udp port 443` → no packets = IP/port block; endpoint unchanged = config/app mismatch; endpoint changes + no `latest handshake` = I1 dropped → try a shaped I1 / `<r 48>` / no I1 in the phone's config first (via `vpnkey.py`).
+
+**Next step**
+- Desktop server: run `diagnose`, clean old kernels the same way, consider the userns sysctl.
+- Kernel-update habit: after `apt upgrade` → `dkms status` + `diagnose` before rebooting; `repair-module` if a kernel lacks the module.
+- Relay: either delete the `before.init` rules + `ufw route` rule on the RU VPS, or repoint them at the desktop server's new IP.
+
 ## 2026-08-10 — yazi Lua plugin + Lua from scratch (multi-turn tail of the sway migration)
 
 **What we did.** Finished the yazi multi-file URI copy as a proper **Lua plugin** (verified working:
