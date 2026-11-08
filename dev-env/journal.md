@@ -7,6 +7,34 @@ tags: []
 
 # Journal
 
+## 2026-11-04 → 11-08 — cargo-tracking search (replacing workplace-post.ru)
+
+**Why:** workplace-post.ru is being shut down and its /api/tracking + /api/im-tracking already fail. The bot becomes the store + API. First endpoint: GET /api/cargo-tracking/search/:query. Response format copied exactly from the live API so search-gruz.php only needs a base-URL change, and testing becomes "same query against both servers".
+
+**Built**
+- router: `:param` routes. compilePath (anchored regex + keys, escaped literals), a param-route list scanned after the static Map misses, params as the handler's 2nd argument (old handlers still compile), malformed %-encoding → 400. A thrown error now becomes a 500 INSIDE the middleware chain, so cors still adds its headers (before: the browser saw a CORS error instead of the 500). 6 vitest tests. Committed.
+- schema: CargoShipment / CargoWarehouseMovement / CargoDeliveryRecord, all data columns text, waybill_number NOT NULL + indexed, no foreign keys (13 warehouse / 40 delivery ТТН in October have no shipment row). Migration 20261104115949_add_cargo_tracking.
+- src/cargo-tracking/service.ts: searchCargo + ruDateKey + cargoStatusMessage. Not committed yet.
+
+**Decisions + reasoning**
+- Dates stay text, cleaned at import; sorting happens in TS through a YYYYMMDD key. A DateTime column would add a timezone trap and drop values like "испорчена".
+- Status = MOST ADVANCED stage first (delivered → waiting → in transit → not arrived). My first version ("first missing stage") was wrong: 20/177 delivered October parcels had no СВХ stop.
+- Lookup: exact ТТН, then trackNumber contains. Follow-up queries are exact (contains would pull other parcels).
+- A track contains search can't use a B-tree index; fine at ~3k rows (PERF note in the schema: pg_trgm if it grows).
+
+**Findings**
+- Live not-found: `{success:false, data:{waybillNumber:<query>, …"", message:"Нет данных о грузе"}}`; im-tracking not-found = empty body.
+- Live API overwrites nothing in the "no warehouse, no delivery" case → "не достиг"; the PHP would have said "следует с транзитного".
+- The workbook sends ТТН as numbers and dates as a mix of "DD.MM.YYYY" and Excel serials (some fractional); header rows repeat per city block.
+- Merging months creates delivery duplicates: the older month has "Дата", the newer has the real outcome.
+- The dev database was reset (a hand-edited migration's checksum differed); seed has to be re-run with `yarn db:seed`.
+
+**Next step**
+1. Add the doc comment + comment cleanup to service.ts, wire the route, commit.
+2. Open question: two delivery rows and neither has a delivery date: show the most recent arrival?
+3. The importer: cell cleanup function first (input = whatever xlsx gives: number | string | null; output = clean string | null), then N files → three tables in one transaction.
+4. Load the October + November files; compare against the live API using the expected-differences table (dropped warehouse stop, date order, "Дата" placeholder, exact ТТН priority, duplicate delivery rows).
+
 ## 2026-11-04 → 2026-11-05 — AmneziaWG: RU relay, then kernel installer on two foreign servers
 
 **Covered / built**
